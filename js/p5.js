@@ -13,8 +13,8 @@ configs = {
 
 function preload()
 {
-    configs.phone.image = loadImage('../phone.png');
-    configs.user.image = loadImage('../mike.png');
+    configs.phone.image = loadImage('https://walter-dalla.github.io/POC-CapaDeCelular/phone.png');
+    configs.user.image = loadImage('https://walter-dalla.github.io/POC-CapaDeCelular/mike.png');
 }
 
 function setup() {
