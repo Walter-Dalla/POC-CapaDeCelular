@@ -518,11 +518,20 @@
   }
 }
 
-/* Empty state placed by the stage over the case rectangle (left, top, width, height set from the script) */
+/* Empty state placed by the stage over the case rectangle (left, top, width, height set from the script);
+   on a case drawn too small for the text, the text starts at the top padding instead of rising over the cutout */
 .stage-empty--placed {
+  justify-content: safe center;
   max-width: none;
   overflow: hidden;
   transform: none;
+}
+
+/* Below 900px the case is drawn small: tighter rows keep the hint above the bottom edge */
+@media (max-width: 899px) {
+  .stage-empty--placed {
+    gap: var(--space-12);
+  }
 }
 
 /* Legend items: a line sample beside each text, as drawn on the stage */

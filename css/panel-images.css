@@ -211,4 +211,14 @@
   #panel-images > .panel__compact {
     display: none;
   }
+
+  /* The seven buttons fit one row of the 400px panel, Remover at the right end */
+  .layer-card {
+    padding-inline: var(--space-8);
+  }
+
+  .layer-card__actions {
+    flex-wrap: nowrap;
+    gap: var(--space-4);
+  }
 }

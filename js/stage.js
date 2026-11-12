@@ -19,6 +19,10 @@ import { drawComposition, drawLayers } from './render.js';
 const STAGE_ROOM_MM = 6;
 // Space between the lowest top cutout and the empty-state text, in px.
 const EMPTY_TEXT_GAP_PX = 12;
+// Height in px of the case on screen under which the empty-state text is not
+// shown: the case of the open mobile drawer is a few px tall, the collapsed
+// drawer and desktop cases are over 500 px.
+export const EMPTY_TEXT_MIN_PX = 400;
 // Relative luminance under which the cover background counts as dark.
 const DARK_LUMINANCE = 0.4;
 const DEFAULT_SAFE_MARGIN_MM = 3;
@@ -87,6 +91,17 @@ export function previewCaption(exportOptions, model) {
     : 'Prévia do arquivo · retângulo inteiro sem sangria';
 }
 
+// Height in px of the stage area under which the file preview leaves out its
+// caption and rulers: the area of the open mobile drawer is about 110 px, the
+// collapsed drawer and desktop areas are over 600 px.
+export const PREVIEW_MARKS_MIN_PX = 200;
+
+// Whether the file preview shows its caption and rulers, from the height of
+// the stage area (which does not change when the caption hides).
+export function previewMarks(stageHeight) {
+  return stageHeight >= PREVIEW_MARKS_MIN_PX;
+}
+
 // Texts of the width and height rulers of the file preview.
 export function previewRulers(exportOptions, model) {
   const bleed = effectiveBleed(exportOptions, model);
@@ -116,6 +131,12 @@ export function emptyBox(layout, model) {
     height,
     paddingTop: bottom === null ? null : bottom * scale + EMPTY_TEXT_GAP_PX,
   };
+}
+
+// Whether the empty-state text shows over a case placed as emptyBox says:
+// on a case drawn too small it would only show clipped fragments.
+export function emptyTextFits(box) {
+  return box.height >= EMPTY_TEXT_MIN_PX;
 }
 
 // Whether a #RGB or #RRGGBB colour has a relative luminance below 0.4.
@@ -253,20 +274,32 @@ function withShadow(g, shadow) {
   g.shadowColor = shadow.color;
 }
 
-// Line drawn twice so it reads over any cover: a dark under-stroke, then the
-// yellow dashes.
-function strokeWarn(g, tokens, trace) {
+// Passes of a line that reads over any cover: a solid dark under-stroke, then
+// the dashes in the colour token. Widths in px; colours are token names.
+export function contrastStrokes(colour, dash) {
+  return [
+    { lineWidth: 3, dash: [], colour: '--color-bg' },
+    { lineWidth: 1.5, dash, colour },
+  ];
+}
+
+// Strokes the path that trace() builds with each pass of contrastStrokes.
+function strokeContrast(g, tokens, passes, trace) {
   g.save();
   g.beginPath();
   trace();
-  g.lineWidth = 3;
-  g.strokeStyle = tokens['--color-bg'];
-  g.stroke();
-  g.lineWidth = 1.5;
-  g.setLineDash(WARN_DASH);
-  g.strokeStyle = tokens['--color-warn'];
-  g.stroke();
+  for (const pass of passes) {
+    g.lineWidth = pass.lineWidth;
+    g.setLineDash(pass.dash);
+    g.strokeStyle = tokens[pass.colour];
+    g.stroke();
+  }
   g.restore();
+}
+
+// Safe margin and guides: yellow dashes over the dark under-stroke.
+function strokeWarn(g, tokens, trace) {
+  strokeContrast(g, tokens, contrastStrokes('--color-warn', WARN_DASH), trace);
 }
 
 // Rotated rectangle of a rect in mm, as a closed path in px.
@@ -452,6 +485,12 @@ function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
 
 const CHECKER_PX = 8;
 const CUT_DASH = [6, 4];
+
+// Passes of the cut line of the file preview: white dashes over the dark
+// under-stroke, so the line shows over a white background too.
+export function cutLineStrokes() {
+  return contrastStrokes('--color-text', CUT_DASH);
+}
 const RULER_GAP_PX = 8;
 const RULER_FONT_PX = 13;
 
@@ -499,8 +538,8 @@ function drawRuler(g, length, text, tokens) {
 // File preview: the case + bleed rectangle as the export draws it, over a
 // checkerboard where the file is transparent, with the cut line and rulers.
 // Origin at the centre of the case, lengths in mm × scale; ratio is the
-// device pixel ratio of the stage canvas.
-function drawPreview(g, { state, model, scale, ratio, tokens, getBitmap }) {
+// device pixel ratio of the stage canvas; marks false leaves out the rulers.
+function drawPreview(g, { state, model, scale, ratio, tokens, getBitmap, marks }) {
   const { project, exportOptions } = state;
   const bleedMm = effectiveBleed(exportOptions, model);
   const width = (model.case.width + 2 * bleedMm) * scale;
@@ -531,14 +570,8 @@ function drawPreview(g, { state, model, scale, ratio, tokens, getBitmap }) {
   fillChecker(g, left, top, width, height, tokens);
   g.drawImage(file, left, top, width, height);
 
-  g.save();
-  g.beginPath();
-  traceCase(g, model, 0, scale);
-  g.lineWidth = 1.5;
-  g.setLineDash(CUT_DASH);
-  g.strokeStyle = tokens['--color-text'];
-  g.stroke();
-  g.restore();
+  strokeContrast(g, tokens, cutLineStrokes(), () => traceCase(g, model, 0, scale));
+  if (!marks) return;
 
   const rulers = previewRulers(exportOptions, model);
   const offset = RULER_GAP_PX + RULER_FONT_PX / 2;
@@ -579,6 +612,7 @@ export function mountStage(ctx) {
   const byId = (id) => document.getElementById(id);
   const canvas = byId('stage-canvas');
   const box = canvas.parentElement;
+  const area = box.parentElement;
   const empty = byId('stage-empty');
   const legend = byId('stage-legend');
   const toolbar = byId('stage-toolbar');
@@ -592,7 +626,7 @@ export function mountStage(ctx) {
   // Without an image registry the layers have no bitmap and are not drawn.
   const getBitmap = (id) => ctx.images?.getBitmap(id) ?? null;
 
-  function updateChrome(state, view, model) {
+  function updateChrome(state, view, model, marks) {
     const entries = legendEntries(view, model, state.ui);
     const key = entries.map((entry) => `${entry.sample}:${entry.text}`).join('|');
     if (key !== legendKey) {
@@ -605,13 +639,17 @@ export function mountStage(ctx) {
     const cropping = view === 'edit' && cropLayerOf(state) !== null;
     toolbar.hidden = preview || cropping;
     cropBar.hidden = !cropping;
-    caption.hidden = !preview;
+    caption.hidden = !preview || !marks;
     if (preview) caption.textContent = previewCaption(state.exportOptions, model);
   }
 
   function placeEmpty(state, model) {
     if (empty.hidden) return;
     const placed = emptyBox(layout, model);
+    if (!emptyTextFits(placed)) {
+      empty.hidden = true;
+      return;
+    }
     empty.classList.add('stage-empty--placed');
     empty.classList.toggle('stage-empty--on-dark', isDarkColour(state.project.background));
     empty.style.left = `${placed.left}px`;
@@ -625,7 +663,8 @@ export function mountStage(ctx) {
     const state = ctx.state.getState();
     const model = ctx.model();
     const view = stageView(state);
-    updateChrome(state, view, model);
+    const marks = previewMarks(area.clientHeight);
+    updateChrome(state, view, model, marks);
 
     const width = box.clientWidth;
     const height = box.clientHeight;
@@ -640,7 +679,7 @@ export function mountStage(ctx) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.setTransform(ratio, 0, 0, ratio, layout.originX * ratio, layout.originY * ratio);
-    const scene = { state, model, scale: layout.scale, ratio, tokens, getBitmap };
+    const scene = { state, model, scale: layout.scale, ratio, tokens, getBitmap, marks };
     if (view === 'preview') drawPreview(g, scene);
     else drawEdit(g, scene);
   }

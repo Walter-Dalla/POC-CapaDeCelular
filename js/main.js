@@ -105,8 +105,14 @@ function createDrawer() {
   return { set };
 }
 
-// Step tabs with roving tabindex; the Modelo and Exportar tabs expand the drawer, Imagens collapses it.
-function createTabs(drawer) {
+// Whether the drawer opens on a tab: Modelo and Exportar expand it, Imagens collapses it.
+export function drawerOpen(tab) {
+  return tab !== 'images';
+}
+
+// Step tabs with roving tabindex; showing a tab sets the drawer as drawerOpen says,
+// and so does creating them, for the tab selected in the page.
+export function createTabs(drawer) {
   const listeners = [];
   let current = TABS.find((name) => byId(`tab-${name}`).getAttribute('aria-selected') === 'true') ?? TABS[0];
 
@@ -120,7 +126,7 @@ function createTabs(drawer) {
       byId(`panel-${tab}`).hidden = !selected;
     }
     if (focus) byId(`tab-${name}`).focus();
-    drawer.set(name !== 'images');
+    drawer.set(drawerOpen(name));
     const changed = name !== current;
     current = name;
     if (changed) for (const fn of listeners) fn(name);
@@ -136,6 +142,7 @@ function createTabs(drawer) {
       show(target, { focus: true });
     });
   }
+  drawer.set(drawerOpen(current));
 
   return {
     show: (name) => show(name),
