@@ -366,12 +366,14 @@ async function openDraft(ctx) {
     fail(error);
   }
   draft.autosave = createAutosave({
-    async save() {
+    async save({ cancelled }) {
       if (!draft.db) return;
       try {
         await saveDraft(draft.db, serializeDraft(state.getState()), (id) => ctx.images.getBlob(id));
         draft.available = true;
       } catch (error) {
+        // A save overtaken by "Novo projeto" may lose its images mid-way: not a failure.
+        if (cancelled()) return;
         fail(error);
       }
     },

@@ -240,8 +240,9 @@ export function clearDraft(db) {
 // Debounced saving: touch() (re)starts the timer, the save runs `delay` ms
 // after the last touch, saves never overlap (a touch during a save schedules
 // one more after it), flush() saves at once when something is pending and
-// cancel() drops what is pending.
-// A rejected save is left to `save` to report.
+// cancel() drops what is pending. `save` gets `{ cancelled() }`, true once
+// cancel() was called during that save. A rejected save is left to `save` to
+// report.
 export function createAutosave({
   save,
   delay = 500,
@@ -252,6 +253,7 @@ export function createAutosave({
   let dirty = false;
   let running = null;
   let urgent = false;
+  let current = null;
 
   function stopTimer() {
     if (timer === null) return;
@@ -271,11 +273,14 @@ export function createAutosave({
     stopTimer();
     dirty = false;
     urgent = false;
+    const token = { cancelled: false };
+    current = token;
     running = Promise.resolve()
-      .then(save)
+      .then(() => save({ cancelled: () => token.cancelled }))
       .catch(() => {})
       .then(() => {
         running = null;
+        current = null;
         if (!dirty) return;
         if (urgent) run();
         else schedule();
@@ -296,8 +301,10 @@ export function createAutosave({
       }
       return run();
     },
-    // Forgets what is waiting to be saved; a save already running ends normally.
+    // Forgets what is waiting to be saved; a save already running goes on, but
+    // its `cancelled()` turns true so it can end without reporting a failure.
     cancel() {
+      if (current) current.cancelled = true;
       stopTimer();
       dirty = false;
       urgent = false;

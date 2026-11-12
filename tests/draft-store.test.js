@@ -151,6 +151,50 @@ test('flush saves at once when something is pending, and the timer does not save
   assert.equal(saves, 1);
 });
 
+test('cancel during a running save marks that save cancelled, and it can fail silently', async () => {
+  const clock = fakeClock();
+  const reported = [];
+  let finish = null;
+  let seenAtStart = null;
+  const autosave = createAutosave({
+    save: ({ cancelled }) => {
+      seenAtStart = cancelled();
+      return new Promise((resolve, reject) => {
+        finish = reject;
+      }).catch((error) => {
+        if (!cancelled()) reported.push(error.message);
+      });
+    },
+    setTimer: clock.setTimer,
+    clearTimer: clock.clearTimer,
+  });
+  autosave.touch();
+  clock.advance(500);
+  await settle();
+  assert.equal(seenAtStart, false);
+  autosave.cancel();
+  finish(new Error('imagem ausente'));
+  await settle();
+  assert.deepEqual(reported, []);
+  assert.equal(autosave.pending(), false);
+});
+
+test('a save not cancelled sees cancelled() false and reports its failure', async () => {
+  const reported = [];
+  const autosave = createAutosave({
+    save: async ({ cancelled }) => {
+      try {
+        throw new Error('cota');
+      } catch (error) {
+        if (!cancelled()) reported.push(error.message);
+      }
+    },
+  });
+  autosave.touch();
+  await autosave.flush();
+  assert.deepEqual(reported, ['cota']);
+});
+
 test('a failed save leaves the autosave working', async () => {
   const clock = fakeClock();
   let saves = 0;
