@@ -187,6 +187,7 @@ function buildPicker(content, ctx) {
       ...view.brands.map((name) => {
         const chip = element('button', 'chip', name);
         chip.type = 'button';
+        chip.dataset.key = name;
         const value = name === ALL_BRANDS ? null : name;
         chip.setAttribute('aria-pressed', String(value === brand));
         chip.addEventListener('click', () => {
@@ -203,6 +204,7 @@ function buildPicker(content, ctx) {
       ...view.cards.map((card) => {
         const button = element('button', card.selected ? 'card card--selected model-card' : 'card model-card');
         button.type = 'button';
+        button.dataset.key = card.id;
         button.setAttribute('aria-pressed', String(card.selected));
         const text = element('span', 'model-card__text');
         text.append(element('span', 'model-card__name', card.name), element('span', 'model-card__detail', card.detail));
@@ -221,10 +223,18 @@ function buildPicker(content, ctx) {
     empty.hidden = view.empty === null;
   }
 
+  // The chips and cards are rebuilt on every render; the one that had focus gets it back by its key.
   function render() {
+    const focused = document.activeElement;
+    const group = [brands, list].find((parent) => focused && focused.parentElement === parent) ?? null;
+    const key = group ? focused.dataset.key : null;
     const view = modelListView(catalog, { query, brand, selectedId: state.getState().project.modelId });
     renderBrands(view);
     renderCards(view);
+    if (group) {
+      const again = [...group.children].find((child) => child.dataset.key === key);
+      if (again) again.focus();
+    }
   }
 
   input.addEventListener('input', () => {
