@@ -1,1 +1,50 @@
-/* Imagens panel. */
+/* Imagens panel. Every colour, radius and spacing comes from css/tokens.css. */
+
+/* The tab panel scrolls; the footer with the next-step button stays at its bottom edge */
+#panel-images {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-images {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: var(--space-20);
+  padding: var(--space-20);
+}
+
+/* Drop button: opens the chooser; files may also be dropped or pasted anywhere */
+.panel-images__drop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  border: 2px dashed var(--color-border-strong);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel-images__drop-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  flex-shrink: 0;
+  border-radius: var(--radius-field);
+  background: var(--color-card);
+  color: var(--color-accent);
+}
+
+.panel-images__drop-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.panel-images__drop-title {
+  font-weight: 700;
+}
