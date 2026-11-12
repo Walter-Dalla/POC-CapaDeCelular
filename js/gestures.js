@@ -7,8 +7,12 @@ import { layerRect, pointInRotatedRect, selectionHandles, snapToZero } from './g
 import {
   getLayer,
   layerBounds,
+  lowerLayer,
   moveLayer,
+  moveLayerBy,
   normalizeRotation,
+  raiseLayer,
+  removeLayer,
   scaleLayer,
   setLayerWidth,
   setRotation,
@@ -106,10 +110,51 @@ export function pinchStep(start, a, b) {
   };
 }
 
+const ARROW_STEP_MM = 1;
+const ARROW_FINE_STEP_MM = 0.1;
+const ARROWS = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+const KEY_ACTIONS = {
+  Delete: 'remove',
+  Backspace: 'remove',
+  ']': 'raise',
+  '[': 'lower',
+  Escape: 'cancel',
+  Enter: 'confirm',
+};
+
+// Action of a key pressed on the stage, or null: keys typed in a text field
+// and shortcuts with Ctrl or Meta belong to someone else. Arrows move by 1 mm,
+// by 0.1 mm with Shift.
+export function keyAction({ key, shiftKey, ctrlKey, metaKey, targetIsText }) {
+  if (targetIsText || ctrlKey || metaKey) return null;
+  const arrow = ARROWS[key];
+  if (arrow) {
+    const step = shiftKey ? ARROW_FINE_STEP_MM : ARROW_STEP_MM;
+    return { type: 'move', dx: arrow[0] * step, dy: arrow[1] * step };
+  }
+  const type = KEY_ACTIONS[key];
+  return type ? { type } : null;
+}
+
+const NON_TEXT_INPUTS = new Set(['button', 'checkbox', 'color', 'file', 'hidden', 'image', 'radio', 'range', 'reset', 'submit']);
+
+function isTextTarget(element) {
+  if (!element) return false;
+  if (element.isContentEditable) return true;
+  if (element.tagName === 'TEXTAREA' || element.tagName === 'SELECT') return true;
+  return element.tagName === 'INPUT' && !NON_TEXT_INPUTS.has(element.type);
+}
+
 // Wires the pointer on the stage canvas. Does nothing without the state or the stage.
 export function mountGestures(ctx) {
   if (!ctx.state || !ctx.stage) return;
   const canvas = document.getElementById('stage-canvas');
+  const stage = document.getElementById('stage');
   const { state } = ctx;
   // Active pointers on the canvas, by pointer id, in mm.
   const pointers = new Map();
@@ -280,4 +325,49 @@ export function mountGestures(ctx) {
     },
     { passive: false },
   );
+
+  // Applies a key action to the selected layer; returns whether it was used.
+  function applyKey(action) {
+    const current = state.getState();
+    if (stageView(current) !== 'edit') return false;
+    const layer = selectedLayer();
+    switch (action.type) {
+      case 'cancel':
+        if (current.ui.selectedLayerId === null) return false;
+        state.setUi({ selectedLayerId: null });
+        return true;
+      case 'move':
+        if (!layer) return false;
+        state.updateProject((project) => moveLayerBy(project, layer.id, action.dx, action.dy, bounds()));
+        state.commit('arrows');
+        return true;
+      case 'remove':
+        if (!layer) return false;
+        state.updateProject((project) => removeLayer(project, layer.id));
+        state.commit();
+        state.setUi({ selectedLayerId: null });
+        return true;
+      case 'raise':
+      case 'lower':
+        if (!layer) return false;
+        state.updateProject((project) => (action.type === 'raise' ? raiseLayer : lowerLayer)(project, layer.id));
+        state.commit();
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  stage.addEventListener('keydown', (event) => {
+    // Enter on a button inside the stage presses that button.
+    if (event.key === 'Enter' && event.target.closest?.('button, a')) return;
+    const action = keyAction({
+      key: event.key,
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      metaKey: event.metaKey,
+      targetIsText: isTextTarget(event.target),
+    });
+    if (action && applyKey(action)) event.preventDefault();
+  });
 }
