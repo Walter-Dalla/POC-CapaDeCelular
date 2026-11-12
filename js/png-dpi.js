@@ -83,6 +83,59 @@ export function setPngDpi(bytes, dpi) {
   return out;
 }
 
+const JFIF_ID = [0x4a, 0x46, 0x49, 0x46, 0x00];
+const CM_PER_INCH = 2.54;
+
+function checkDensity(dpi) {
+  const value = Math.round(dpi);
+  if (!Number.isFinite(value) || value < 1 || value > 0xffff) {
+    throw new RangeError('DPI fora do intervalo de 1 a 65535');
+  }
+  return value;
+}
+
+// Offset of the JFIF APP0 segment right after SOI, or -1 when the first segment is another one.
+function jfifOffset(bytes) {
+  const invalid = () => new Error('JPEG inválido');
+  if (!(bytes instanceof Uint8Array) || bytes.length < 4) throw invalid();
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) throw invalid();
+  if (bytes[3] !== 0xe0) return -1;
+  if (bytes.length < 6) throw invalid();
+  const length = (bytes[4] << 8) | bytes[5];
+  if (length < 2 || 4 + length > bytes.length) throw invalid();
+  const isJfif = length >= 16 && JFIF_ID.every((value, i) => bytes[6 + i] === value);
+  return isJfif ? 2 : -1;
+}
+
+export function setJpegDpi(bytes, dpi) {
+  const density = checkDensity(dpi);
+  const at = jfifOffset(bytes);
+  const high = density >>> 8;
+  const low = density & 0xff;
+  if (at >= 0) {
+    const out = bytes.slice();
+    out[at + 11] = 1;
+    out.set([high, low, high, low], at + 12);
+    return out;
+  }
+  const segment = [0xff, 0xe0, 0x00, 0x10, ...JFIF_ID, 0x01, 0x01, 0x01, high, low, high, low, 0x00, 0x00];
+  const out = new Uint8Array(bytes.length + segment.length);
+  out.set(bytes.subarray(0, 2), 0);
+  out.set(segment, 2);
+  out.set(bytes.subarray(2), 2 + segment.length);
+  return out;
+}
+
+export function readJpegDpi(bytes) {
+  const at = jfifOffset(bytes);
+  if (at < 0) return null;
+  const units = bytes[at + 11];
+  const density = (bytes[at + 12] << 8) | bytes[at + 13];
+  if (units === 1) return density;
+  if (units === 2) return Math.round(density * CM_PER_INCH);
+  return null;
+}
+
 export function readPngDpi(bytes) {
   const phys = pngChunks(bytes).find((chunk) => chunk.type === 'pHYs');
   if (!phys || phys.length < 9 || bytes[phys.dataStart + 8] !== 1) return null;
