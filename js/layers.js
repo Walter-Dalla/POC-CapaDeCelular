@@ -7,6 +7,7 @@ const FULL_CROP = Object.freeze({ x: 0, y: 0, width: 1, height: 1 });
 const DUPLICATE_OFFSET_MM = 5;
 const MIN_WIDTH_MM = 5;
 const MAX_WIDTH_MM = 2000;
+const MIN_CROP_SIDE = 0.05;
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 // A new unique id. crypto.randomUUID is missing on plain-http addresses, so
@@ -222,4 +223,51 @@ export function fitLayer(project, id, model) {
 // Centres the layer on the cover, keeping its size and rotation.
 export function centreLayer(project, id) {
   return updateLayer(project, id, (layer) => ({ ...layer, cx: 0, cy: 0 }));
+}
+
+function finiteOr(value, fallback) {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+// Crop rectangle (fractions of the image) brought inside 0–1 with each side at
+// least 0.05: each side is first limited to 0.05–1, then the rectangle is
+// shifted back inside the image.
+export function clampCrop(crop) {
+  const width = clamp(finiteOr(crop?.width, 1), MIN_CROP_SIDE, 1);
+  const height = clamp(finiteOr(crop?.height, 1), MIN_CROP_SIDE, 1);
+  return {
+    x: clamp(finiteOr(crop?.x, 0), 0, 1 - width),
+    y: clamp(finiteOr(crop?.y, 0), 0, 1 - height),
+    width,
+    height,
+  };
+}
+
+// Changes the crop keeping every visible pixel of the image where it was on
+// the cover: the scale (mm per image pixel) stays, the width follows the new
+// crop width and the centre moves by the shift between the old and the new
+// crop centres, turned by the layer rotation. The centre is not clamped.
+export function setCrop(project, id, crop) {
+  return updateLayer(project, id, (layer) => {
+    const before = cropOf(layer);
+    const after = clampCrop(crop);
+    const mmPerPx = layer.width / (before.width * layer.naturalWidth);
+    const dx = (after.x + after.width / 2 - (before.x + before.width / 2)) * layer.naturalWidth * mmPerPx;
+    const dy = (after.y + after.height / 2 - (before.y + before.height / 2)) * layer.naturalHeight * mmPerPx;
+    const a = (layer.rotation * Math.PI) / 180;
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    return {
+      ...layer,
+      crop: after,
+      width: mmPerPx * after.width * layer.naturalWidth,
+      cx: layer.cx + dx * cos - dy * sin,
+      cy: layer.cy + dx * sin + dy * cos,
+    };
+  });
+}
+
+// Back to the whole image, keeping the image where it was.
+export function resetCrop(project, id) {
+  return setCrop(project, id, FULL_CROP);
 }
