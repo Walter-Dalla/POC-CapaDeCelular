@@ -9,6 +9,7 @@ import {
   layerBounds,
   moveLayer,
   normalizeRotation,
+  scaleLayer,
   setLayerWidth,
   setRotation,
   snapRotation,
@@ -82,6 +83,27 @@ export function rotateFromHandle(start, pointer, snap) {
   const centre = { x: start.cx, y: start.cy };
   const rotation = normalizeRotation(start.rotation + angleOf(centre, pointer) - angleOf(centre, start));
   return snap ? snapRotation(rotation, 15) : rotation;
+}
+
+const WHEEL_RATE = 0.0015;
+const WHEEL_MIN = 0.8;
+const WHEEL_MAX = 1.25;
+
+// Scale factor of one wheel event: up (negative deltaY) grows, down shrinks,
+// limited to 0.8–1.25 per event.
+export function wheelFactor(deltaY) {
+  return Math.min(WHEEL_MAX, Math.max(WHEEL_MIN, Math.exp(-deltaY * WHEEL_RATE)));
+}
+
+// Two-finger pinch from the pointers at the start (start.a, start.b) to the
+// pointers now (a, b): the factor between their distances and the turn of the
+// line through them, in degrees within (−180, 180].
+export function pinchStep(start, a, b) {
+  const before = distance(start.a, start.b);
+  return {
+    factor: before === 0 ? 1 : distance(a, b) / before,
+    rotation: normalizeRotation(angleOf(a, b) - angleOf(start.a, start.b)),
+  };
 }
 
 // Wires the pointer on the stage canvas. Does nothing without the state or the stage.
@@ -158,7 +180,54 @@ export function mountGestures(ctx) {
       change((project) => setLayerWidth(project, layerId, scaleFromHandle(start, point)));
     } else if (kind === 'rotate') {
       change((project) => setRotation(project, layerId, rotateFromHandle(start, point, event.shiftKey)));
+    } else if (kind === 'pinch') {
+      const step = pinchStep(start, pointers.get(gesture.pointerIds[0]), pointers.get(gesture.pointerIds[1]));
+      change((project) =>
+        setRotation(
+          setLayerWidth(project, layerId, start.width * step.factor),
+          layerId,
+          start.rotation + step.rotation,
+        ),
+      );
     }
+  }
+
+  // The selected layer, or null.
+  function selectedLayer() {
+    const { project, ui } = state.getState();
+    return getLayer(project, ui.selectedLayerId);
+  }
+
+  // A second finger turns the gesture into a pinch on the selected layer,
+  // keeping what the first finger already changed in the same undo step.
+  function startPinch() {
+    const layer = selectedLayer();
+    const moved = gesture?.moved ?? false;
+    state.setUi({ guides: NO_GUIDES });
+    gesture = null;
+    if (!layer) {
+      if (moved) state.commit();
+      return;
+    }
+    const pointerIds = [...pointers.keys()];
+    gesture = {
+      kind: 'pinch',
+      pointerIds,
+      layerId: layer.id,
+      start: {
+        a: pointers.get(pointerIds[0]),
+        b: pointers.get(pointerIds[1]),
+        width: layer.width,
+        rotation: layer.rotation,
+      },
+      moved,
+    };
+  }
+
+  // Whether the pointer drives the current gesture.
+  function drives(pointerId) {
+    if (!gesture) return false;
+    return gesture.kind === 'pinch' ? gesture.pointerIds.includes(pointerId) : gesture.pointerId === pointerId;
   }
 
   function endGesture() {
@@ -175,6 +244,7 @@ export function mountGestures(ctx) {
     canvas.setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, point);
     if (pointers.size === 1 && !gesture) startLayerGesture(point, event.pointerId);
+    else if (pointers.size === 2) startPinch();
   });
 
   canvas.addEventListener('pointermove', (event) => {
@@ -184,15 +254,30 @@ export function mountGestures(ctx) {
       return;
     }
     pointers.set(event.pointerId, point);
-    if (gesture && gesture.pointerId === event.pointerId) moveGesture(event, point);
+    if (drives(event.pointerId)) moveGesture(event, point);
   });
 
   function release(event) {
     if (!pointers.delete(event.pointerId)) return;
-    if (gesture && gesture.pointerId === event.pointerId) endGesture();
+    if (drives(event.pointerId)) endGesture();
     if (event.pointerType === 'mouse') hover(ctx.stage.toMm(event.clientX, event.clientY));
     else setCursor(null);
   }
   canvas.addEventListener('pointerup', release);
   canvas.addEventListener('pointercancel', release);
+
+  // The wheel scales the selected layer; a burst of wheel events is one undo step.
+  canvas.addEventListener(
+    'wheel',
+    (event) => {
+      const current = state.getState();
+      if (stageView(current) !== 'edit' || current.ui.cropLayerId) return;
+      const layer = selectedLayer();
+      if (!layer) return;
+      event.preventDefault();
+      state.updateProject((project) => scaleLayer(project, layer.id, wheelFactor(event.deltaY)));
+      state.commit('wheel');
+    },
+    { passive: false },
+  );
 }
