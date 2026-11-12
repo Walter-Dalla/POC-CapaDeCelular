@@ -4,6 +4,7 @@ import { effectiveBleed, exportSize } from '../geometry.js';
 import { formatDpi, formatPx, formatSize, parseMm, plural } from '../format.js';
 import { exportFileName } from '../export-name.js';
 import { effectiveDpi, lowResLayers } from '../layers.js';
+import { LIMIT_MESSAGE, download, exportFile } from '../export.js';
 
 const FORMATS = ['png', 'jpeg'];
 const DPIS = [150, 300, 600];
@@ -361,14 +362,49 @@ function buildSummary(content, ctx) {
   return render;
 }
 
+const DOWNLOAD_ICON = [['path', { d: 'M12 4v12M6 10l6 6 6-6M4 20h16' }]];
+const EXPORT_FAILED = 'Não foi possível gerar o arquivo.';
+
+// The "Baixar arquivo" button: renders the file, downloads it, and shows an error notice when the
+// export fails. The button stays disabled while a file is being made.
+function buildDownload(footer, ctx) {
+  const button = element('button', 'btn btn--primary panel-export__download');
+  button.type = 'button';
+  button.append(icon(DOWNLOAD_ICON, 22, 2.5), document.createTextNode('Baixar arquivo'));
+  footer.append(button);
+
+  let closeError = null;
+  button.addEventListener('click', async () => {
+    if (button.disabled) return;
+    button.disabled = true;
+    if (closeError) closeError();
+    closeError = null;
+    try {
+      const getBitmap = (id) => (ctx.images ? ctx.images.getBitmap(id) : null);
+      const { blob, fileName } = await exportFile(ctx.state.getState(), ctx.model(), getBitmap);
+      download(blob, fileName);
+    } catch (error) {
+      closeError = ctx.notices.show({
+        kind: 'error',
+        strong: EXPORT_FAILED,
+        text: error && error.message === LIMIT_MESSAGE ? LIMIT_MESSAGE : undefined,
+      });
+    } finally {
+      button.disabled = false;
+    }
+  });
+}
+
 export function mount(container, ctx) {
   // Without a store there are no options to change.
   if (!ctx.state) return;
   const content = element('div', 'panel-export');
-  container.append(content);
+  const footer = element('div', 'panel__footer');
+  container.append(content, footer);
 
   const options = buildOptions(content, ctx);
   const renderSummary = buildSummary(content, ctx);
+  buildDownload(footer, ctx);
 
   ctx.state.subscribe((state, prev) => {
     const modelChanged =

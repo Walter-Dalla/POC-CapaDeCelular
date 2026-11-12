@@ -1,5 +1,17 @@
 /* Exportar panel. Every colour, radius and spacing comes from css/tokens.css. */
 
+/* The tab panel scrolls; the footer with the download button stays at its bottom edge */
+#panel-export {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-export__download {
+  width: 100%;
+  min-height: 56px;
+  font-size: 18px;
+}
+
 .panel-export {
   display: flex;
   flex: 1 0 auto;
