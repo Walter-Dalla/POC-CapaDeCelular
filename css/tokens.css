@@ -1,0 +1,68 @@
+/* Design tokens of the studio: dark green theme only. */
+:root {
+  color-scheme: dark;
+
+  /* Colours */
+  --color-bg: #102B26;
+  --color-stage: #173A33;
+  --color-surface: #1E4A41;
+  --color-brand: #24564C;
+  --color-card: #28594F;
+  --color-border: #3B7266;
+  --color-border-strong: #5C9486;
+  --color-text: #FFFFFF;
+  --color-text-2: #D3E4DF;
+  --color-text-3: #B5D0C9;
+  --color-accent: #FFB52E;
+  --color-on-accent: #1B1300;
+  --color-accent-focus: #FFC95E;
+  --color-select: #FF5CA8;
+  --color-on-select: #2A0A1A;
+  --color-guide: #7DB8FF;
+  --color-warn: #FFD447;
+  --color-warn-bg: #3A3413;
+  --color-warn-text: #FFE58A;
+  --color-danger: #FF9B8A;
+  --color-danger-bg: #3D1D18;
+  --color-danger-text: #FFD2CA;
+  --color-danger-soft: #FFB3A6;
+  --color-info-text: #CFE4FF;
+  --color-line: #2B5C52;
+  --color-inset: #1A4239;
+  --color-stage-dot: #245248;
+  --color-switch-off: #8FB8AD;
+  --color-on-cover-2: #3F5F58;
+  --color-backdrop: rgba(0, 0, 0, 0.6);
+  --brand-purple: #6B2FA0;
+  --brand-gradient: linear-gradient(135deg, #F7941D, #E0218A 45%, #6B2FA0 75%, #2D7FF9);
+
+  /* Spacing */
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-40: 40px;
+
+  /* Radii */
+  --radius-thumb: 8px;
+  --radius-icon: 10px;
+  --radius-field: 12px;
+  --radius-card: 14px;
+  --radius-drawer: 20px;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-cover: 0 24px 60px rgba(0, 0, 0, 0.45);
+  --shadow-notice: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-drawer: 0 -10px 30px rgba(0, 0, 0, 0.35);
+
+  /* Sizes */
+  --touch-min: 44px;
+
+  /* Fonts */
+  --font-title: Fredoka, system-ui, sans-serif;
+  --font-text: 'Nunito Sans', system-ui, sans-serif;
+  --font-label: Silkscreen, ui-monospace, monospace;
+}
