@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layerListView } from '../js/panels/images.js';
+import { layerListView, duplicateResult } from '../js/panels/images.js';
 
 const FULL = { x: 0, y: 0, width: 1, height: 1 };
 
@@ -64,4 +64,18 @@ test('half-width crop of a 480 px image: cropped pixel size and its resolution',
     selected: true,
     lowRes: true,
   });
+});
+
+test('duplicateResult: a known layer selects the copy, placed above it', () => {
+  const project = { layers: [background, heart] };
+  const result = duplicateResult(project, 'a', 'copy', { halfWidth: 37.8, halfHeight: 75.8 });
+  assert.equal(result.selectedLayerId, 'copy');
+  assert.deepEqual(result.project.layers.map((layer) => layer.id), ['a', 'copy', 'b']);
+});
+
+test('duplicateResult: an unknown id keeps the project and selects nothing', () => {
+  const project = { layers: [background, heart] };
+  const result = duplicateResult(project, 'gone', 'copy', { halfWidth: 37.8, halfHeight: 75.8 });
+  assert.equal(result.project, project);
+  assert.equal(result.selectedLayerId, null);
 });

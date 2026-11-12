@@ -82,6 +82,13 @@ export function layerListView(project, ui) {
   };
 }
 
+// Project after duplicating a layer and the id to select: the copy's id, or
+// null when nothing was duplicated (unknown layer id).
+export function duplicateResult(project, id, copyId, bounds) {
+  const next = duplicateLayer(project, id, copyId, bounds);
+  return { project: next, selectedLayerId: next === project ? null : copyId };
+}
+
 // Background colours offered as swatches. The swatch fill is set through the
 // CSSOM, so these are the only colour literals of the panel.
 export const BACKGROUNDS = [
@@ -249,9 +256,10 @@ const LAYER_ACTIONS = [
     key: 'duplicate',
     label: 'Duplicar',
     run: (id, ctx) => {
-      const copyId = newId();
-      ctx.state.updateProject((p) => duplicateLayer(p, id, copyId, placement(ctx).bounds));
-      ctx.state.setUi({ selectedLayerId: copyId });
+      const result = duplicateResult(ctx.state.getState().project, id, newId(), placement(ctx).bounds);
+      if (result.selectedLayerId === null) return;
+      ctx.state.updateProject(() => result.project);
+      ctx.state.setUi({ selectedLayerId: result.selectedLayerId });
       ctx.state.commit();
     },
   },
