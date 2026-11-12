@@ -19,6 +19,10 @@ import { drawComposition, drawLayers } from './render.js';
 const STAGE_ROOM_MM = 6;
 // Space between the lowest top cutout and the empty-state text, in px.
 const EMPTY_TEXT_GAP_PX = 12;
+// Height in px of the case on screen under which the empty-state text is not
+// shown: the case of the open mobile drawer is a few px tall, the collapsed
+// drawer and desktop cases are over 500 px.
+export const EMPTY_TEXT_MIN_PX = 400;
 // Relative luminance under which the cover background counts as dark.
 const DARK_LUMINANCE = 0.4;
 const DEFAULT_SAFE_MARGIN_MM = 3;
@@ -127,6 +131,12 @@ export function emptyBox(layout, model) {
     height,
     paddingTop: bottom === null ? null : bottom * scale + EMPTY_TEXT_GAP_PX,
   };
+}
+
+// Whether the empty-state text shows over a case placed as emptyBox says:
+// on a case drawn too small it would only show clipped fragments.
+export function emptyTextFits(box) {
+  return box.height >= EMPTY_TEXT_MIN_PX;
 }
 
 // Whether a #RGB or #RRGGBB colour has a relative luminance below 0.4.
@@ -636,6 +646,10 @@ export function mountStage(ctx) {
   function placeEmpty(state, model) {
     if (empty.hidden) return;
     const placed = emptyBox(layout, model);
+    if (!emptyTextFits(placed)) {
+      empty.hidden = true;
+      return;
+    }
     empty.classList.add('stage-empty--placed');
     empty.classList.toggle('stage-empty--on-dark', isDarkColour(state.project.background));
     empty.style.left = `${placed.left}px`;

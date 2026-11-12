@@ -2,7 +2,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createTabs, drawerOpen } from '../js/main.js';
-import { contrastStrokes, cutLineStrokes, PREVIEW_MARKS_MIN_PX, previewMarks } from '../js/stage.js';
+import {
+  contrastStrokes,
+  cutLineStrokes,
+  EMPTY_TEXT_MIN_PX,
+  emptyTextFits,
+  PREVIEW_MARKS_MIN_PX,
+  previewMarks,
+} from '../js/stage.js';
 
 // Last value of a property declared for an exact selector of a stylesheet
 // (comments dropped; a selector list counts for each of its selectors).
@@ -116,6 +123,17 @@ test('layout.css: the placed empty state never rises above its top padding', () 
   assert.match(mobile, /\.stage-empty--placed \{[^}]*gap: var\(--space-12\);/);
   // The desktop rule keeps the 16px rows of the empty state.
   assert.match(css, /\n\.stage-empty \{[^}]*gap: var\(--space-16\);/);
+});
+
+// Case heights seen in the browser: 1440x900 about 609 px, 390x844 with the
+// drawer collapsed about 514 px, with the drawer open 0 px.
+test('emptyTextFits: the empty-state text shows only over a case 400 px or taller', () => {
+  assert.equal(EMPTY_TEXT_MIN_PX, 400);
+  assert.equal(emptyTextFits({ height: 609 }), true);
+  assert.equal(emptyTextFits({ height: 514 }), true);
+  assert.equal(emptyTextFits({ height: 400 }), true);
+  assert.equal(emptyTextFits({ height: 399 }), false);
+  assert.equal(emptyTextFits({ height: 0 }), false);
 });
 
 // Stage area heights seen in the browser: 1440x900 about 827 px, 390x844 with
