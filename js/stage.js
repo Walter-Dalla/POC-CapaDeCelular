@@ -4,6 +4,7 @@
 // become screen pixels only here, through the scale of the stage layout.
 
 import {
+  effectiveBleed,
   layerRect,
   rectCorners,
   selectionHandles,
@@ -11,8 +12,8 @@ import {
   traceCutouts,
   traceRoundRect,
 } from './geometry.js';
-import { plural } from './format.js';
-import { drawLayers } from './render.js';
+import { formatMm, plural } from './format.js';
+import { drawComposition, drawLayers } from './render.js';
 
 // Free space around the case on the stage, beyond the bleed, in mm.
 const STAGE_ROOM_MM = 6;
@@ -76,6 +77,23 @@ function legendEntries(view, model, ui) {
 // Texts of the legend under the stage for a view ('empty', 'edit', 'preview').
 export function legendItems(view, model, ui) {
   return legendEntries(view, model, ui).map((entry) => entry.text);
+}
+
+// Caption above the file preview: what the exported rectangle contains.
+export function previewCaption(exportOptions, model) {
+  if (exportOptions.clip === 'contour') return 'Prévia do arquivo · no contorno da capa';
+  return effectiveBleed(exportOptions, model) > 0
+    ? 'Prévia do arquivo · retângulo inteiro com sangria'
+    : 'Prévia do arquivo · retângulo inteiro sem sangria';
+}
+
+// Texts of the width and height rulers of the file preview.
+export function previewRulers(exportOptions, model) {
+  const bleed = effectiveBleed(exportOptions, model);
+  return {
+    width: `${formatMm(model.case.width + 2 * bleed)} mm`,
+    height: `${formatMm(model.case.height + 2 * bleed)} mm`,
+  };
 }
 
 // Box of the empty-state overlay over the case, in px of the stage box: the
@@ -357,6 +375,111 @@ function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
   for (const step of editDrawPlan(state, model)) steps[step]();
 }
 
+const CHECKER_PX = 8;
+const CUT_DASH = [6, 4];
+const RULER_GAP_PX = 8;
+const RULER_FONT_PX = 13;
+
+// Checkerboard over the rectangle (x, y, w, h), in px, marking transparency.
+function fillChecker(g, x, y, w, h, tokens) {
+  g.fillStyle = tokens['--color-border'];
+  g.fillRect(x, y, w, h);
+  g.save();
+  g.beginPath();
+  g.rect(x, y, w, h);
+  g.clip();
+  g.fillStyle = tokens['--color-inset'];
+  for (let row = 0; y + row * CHECKER_PX < y + h; row += 1) {
+    for (let col = row % 2; x + col * CHECKER_PX < x + w; col += 2) {
+      g.fillRect(x + col * CHECKER_PX, y + row * CHECKER_PX, CHECKER_PX, CHECKER_PX);
+    }
+  }
+  g.restore();
+}
+
+// Ruler: a text centred on a segment from (0, 0) to (length, 0), the line
+// broken around the text.
+function drawRuler(g, length, text, tokens) {
+  const textWidth = g.measureText(text).width;
+  const gapStart = length / 2 - textWidth / 2 - RULER_GAP_PX;
+  const gapEnd = length / 2 + textWidth / 2 + RULER_GAP_PX;
+  g.beginPath();
+  if (gapStart > 0) {
+    g.moveTo(0, 0);
+    g.lineTo(gapStart, 0);
+  }
+  if (gapEnd < length) {
+    g.moveTo(gapEnd, 0);
+    g.lineTo(length, 0);
+  }
+  g.lineWidth = 1;
+  g.strokeStyle = tokens['--color-border-strong'];
+  g.stroke();
+  g.fillStyle = tokens['--color-text-2'];
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.fillText(text, length / 2, 0);
+}
+
+// File preview: the case + bleed rectangle as the export draws it, over a
+// checkerboard where the file is transparent, with the cut line and rulers.
+// Origin at the centre of the case, lengths in mm × scale; ratio is the
+// device pixel ratio of the stage canvas.
+function drawPreview(g, { state, model, scale, ratio, tokens, getBitmap }) {
+  const { project, exportOptions } = state;
+  const bleedMm = effectiveBleed(exportOptions, model);
+  const width = (model.case.width + 2 * bleedMm) * scale;
+  const height = (model.case.height + 2 * bleedMm) * scale;
+  const left = -width / 2;
+  const top = -height / 2;
+
+  const file = document.createElement('canvas');
+  file.width = Math.max(1, Math.round(width * ratio));
+  file.height = Math.max(1, Math.round(height * ratio));
+  drawComposition(file.getContext('2d'), {
+    model,
+    layers: project.layers,
+    background: project.background,
+    getBitmap,
+    scale: file.width / (model.case.width + 2 * bleedMm),
+    bleedMm,
+    clip: exportOptions.clip,
+    cameraHole: exportOptions.cameraHole,
+    mirror: exportOptions.mirror,
+  });
+
+  g.save();
+  withShadow(g, tokens.shadow);
+  g.fillStyle = tokens['--color-border'];
+  g.fillRect(left, top, width, height);
+  g.restore();
+  fillChecker(g, left, top, width, height, tokens);
+  g.drawImage(file, left, top, width, height);
+
+  g.save();
+  g.beginPath();
+  traceCase(g, model, 0, scale);
+  g.lineWidth = 1.5;
+  g.setLineDash(CUT_DASH);
+  g.strokeStyle = tokens['--color-text'];
+  g.stroke();
+  g.restore();
+
+  const rulers = previewRulers(exportOptions, model);
+  const offset = RULER_GAP_PX + RULER_FONT_PX / 2;
+  g.save();
+  g.font = `${RULER_FONT_PX}px ${tokens['--font-text']}`;
+  g.translate(left, height / 2 + offset);
+  drawRuler(g, width, rulers.width, tokens);
+  g.restore();
+  g.save();
+  g.font = `${RULER_FONT_PX}px ${tokens['--font-text']}`;
+  g.translate(width / 2 + offset, top);
+  g.rotate(Math.PI / 2);
+  drawRuler(g, height, rulers.height, tokens);
+  g.restore();
+}
+
 function renderLegend(list, entries) {
   list.replaceChildren(
     ...entries.map(({ text, sample }) => {
@@ -383,6 +506,8 @@ export function mountStage(ctx) {
   const box = canvas.parentElement;
   const empty = byId('stage-empty');
   const legend = byId('stage-legend');
+  const toolbar = byId('stage-toolbar');
+  const caption = byId('stage-caption');
   const g = canvas.getContext('2d');
   const tokens = readTokens();
   let layout = { scale: 1, originX: 0, originY: 0 };
@@ -400,6 +525,10 @@ export function mountStage(ctx) {
     }
     canvas.setAttribute('aria-label', stageLabel(model, state.project.layers.length));
     empty.hidden = view !== 'empty';
+    const preview = view === 'preview';
+    toolbar.hidden = preview;
+    caption.hidden = !preview;
+    if (preview) caption.textContent = previewCaption(state.exportOptions, model);
   }
 
   function placeEmpty(state, model) {
@@ -433,7 +562,9 @@ export function mountStage(ctx) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.setTransform(ratio, 0, 0, ratio, layout.originX * ratio, layout.originY * ratio);
-    drawEdit(g, { state, model, scale: layout.scale, tokens, getBitmap });
+    const scene = { state, model, scale: layout.scale, ratio, tokens, getBitmap };
+    if (view === 'preview') drawPreview(g, scene);
+    else drawEdit(g, scene);
   }
 
   function schedule() {
@@ -455,6 +586,8 @@ export function mountStage(ctx) {
 
   new ResizeObserver(schedule).observe(box);
   ctx.state.subscribe(schedule);
+  // The rulers are drawn with the page font once it has loaded.
+  document.fonts?.ready.then(schedule);
   ctx.stage = { toMm, pxPerMm: () => layout.scale };
   schedule();
 }
