@@ -15,8 +15,10 @@ import {
   raiseLayer,
   removeLayer,
   setBackground,
+  centreLayer,
+  getLayer,
 } from '../layers.js';
-import { formatDpi, formatPx, plural } from '../format.js';
+import { formatDegrees, formatDpi, formatMm, formatPx, plural } from '../format.js';
 
 const PASTED_NAME = 'imagem-colada.png';
 const DISCARDED = 'descartada';
@@ -101,6 +103,12 @@ export function backgroundView(color) {
   return { swatches, custom: !swatches.some((swatch) => swatch.pressed) };
 }
 
+// Rotation and width of the selected layer for the stage toolbar; null without a selection.
+export function readoutView(layer) {
+  if (!layer) return null;
+  return { rotation: formatDegrees(layer.rotation), width: `${formatMm(layer.width)} mm` };
+}
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Paths of each icon, drawn in a 24 × 24 box with the stroke in the current colour.
@@ -114,6 +122,7 @@ const ICON_PATHS = {
   crop: ['M6 2v14a2 2 0 0 0 2 2h14', 'M18 22V8a2 2 0 0 0-2-2H2'],
   remove: ['M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'],
   warn: ['M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5'],
+  arrow: ['M5 12h14M13 6l6 6-6 6'],
 };
 
 function icon(name, size = 20, strokeWidth = 2) {
@@ -418,6 +427,73 @@ function buildBackground(content, ctx) {
   return render;
 }
 
+// Toolbar of the stage: Preencher, Caber and Centralizar act on the selected
+// layer, the safe-margin button toggles its guide; returns `render`.
+function wireToolbar(ctx) {
+  const byId = (id) => document.getElementById(id);
+  const readout = byId('stage-readout');
+  const safeMargin = byId('btn-safe-margin');
+  const selected = () => {
+    const { project, ui } = ctx.state.getState();
+    return ui.selectedLayerId === null ? null : getLayer(project, ui.selectedLayerId);
+  };
+  const tools = [
+    ['btn-fill', (id) => {
+      const { model, bleed } = placement(ctx);
+      return (p) => fillLayer(p, id, model, bleed);
+    }],
+    ['btn-fit', (id) => (p) => fitLayer(p, id, ctx.model())],
+    ['btn-centre', (id) => (p) => centreLayer(p, id)],
+  ]
+    .map(([id, change]) => [byId(id), change])
+    .filter(([node]) => node);
+  for (const [node, change] of tools) {
+    node.addEventListener('click', () => {
+      const layer = selected();
+      if (layer) apply(ctx, change(layer.id));
+    });
+  }
+  if (safeMargin) {
+    safeMargin.addEventListener('click', () => {
+      ctx.state.setUi({ showSafeMargin: !ctx.state.getState().ui.showSafeMargin });
+    });
+  }
+
+  let shown = null;
+  function render() {
+    const layer = selected();
+    for (const [node] of tools) node.disabled = layer === null;
+    if (safeMargin) safeMargin.setAttribute('aria-pressed', String(ctx.state.getState().ui.showSafeMargin));
+    const view = readoutView(layer);
+    const key = JSON.stringify(view);
+    if (!readout || key === shown) return;
+    shown = key;
+    if (view === null) {
+      readout.replaceChildren();
+      return;
+    }
+    readout.replaceChildren(
+      'Giro ',
+      element('strong', null, view.rotation),
+      ' · Largura ',
+      element('strong', null, view.width),
+    );
+  }
+
+  render();
+  return render;
+}
+
+// Footer with the button to the next step.
+function footer(ctx) {
+  const node = element('div', 'panel__footer');
+  const next = button('btn btn--primary panel__next', 'Continuar para exportar');
+  next.append(icon('arrow', 20, 2.5));
+  next.addEventListener('click', () => ctx.tabs.show('export'));
+  node.append(next);
+  return node;
+}
+
 // Dashed button at the top of the panel that opens the file chooser.
 function dropButton(ctx) {
   const drop = button('inset panel-images__drop');
@@ -438,13 +514,15 @@ export function mount(container, ctx) {
   if (!ctx.state) return;
   const content = element('div', 'panel-images');
   content.append(dropButton(ctx));
-  container.append(content);
+  container.append(content, footer(ctx));
   const renderList = buildList(content, ctx);
   const renderBackground = buildBackground(content, ctx);
+  const renderToolbar = wireToolbar(ctx);
 
   ctx.files.handle = (files) => intake(files, ctx);
   ctx.state.subscribe((state, prev) => {
     renderList();
     if (state.project.background !== prev.project.background) renderBackground();
+    renderToolbar();
   });
 }
