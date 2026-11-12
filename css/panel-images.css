@@ -48,3 +48,90 @@
 .panel-images__drop-title {
   font-weight: 700;
 }
+
+/* Sections: "Camadas" and "Cor de fundo" */
+.panel-images__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.panel-images__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.panel-images__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.panel-images__empty {
+  margin: 0;
+}
+
+/* Layer card: the head selects the layer, the actions row acts on it */
+.layer-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-12);
+}
+
+.layer-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.layer-card__thumb {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  border-radius: var(--radius-thumb);
+  background: var(--color-inset);
+}
+
+.layer-card__text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.layer-card__name {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-card__detail {
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+.layer-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.layer-card__spacer {
+  flex-grow: 1;
+}
+
+.layer-card__warn .notice__icon {
+  flex-shrink: 0;
+}
