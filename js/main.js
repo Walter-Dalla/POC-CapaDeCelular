@@ -6,7 +6,17 @@ import { createRegistry, defaultDecode } from './images.js';
 import { newId } from './layers.js';
 import { mountGestures } from './gestures.js';
 import { mountHistoryControls } from './controls.js';
-import { changesDraft, createAutosave, openDraftDb, saveDraft, serializeDraft } from './draft.js';
+import {
+  changesDraft,
+  clearDraft,
+  createAutosave,
+  openDraftDb,
+  readDraft,
+  restoreDecision,
+  restoreTab,
+  saveDraft,
+  serializeDraft,
+} from './draft.js';
 import { mount as mountModel } from './panels/model.js';
 import { mount as mountImages } from './panels/images.js';
 import { mount as mountExport } from './panels/export.js';
@@ -367,6 +377,44 @@ async function openDraft(ctx) {
   return draft;
 }
 
+// Puts the saved draft back: decodes its images, loads the project and opens
+// its tab. A draft that does not parse or whose image fails to decode is
+// cleared and the editor starts empty, without a message. Resolves true when
+// the draft was restored.
+async function restoreDraft(ctx, draft) {
+  const saved = await readDraft(draft.db);
+  const decision = restoreDecision(saved?.record ?? null, saved ? [...saved.blobs.keys()] : []);
+  if (decision.kind === 'none') return false;
+  if (decision.kind === 'discard') {
+    await clearDraft(draft.db);
+    return false;
+  }
+  const { project } = decision.draft;
+  const imageIds = [...new Set(project.layers.map((layer) => layer.imageId))];
+  try {
+    await Promise.all(imageIds.map((id) => ctx.images.restore(id, saved.blobs.get(id))));
+  } catch (error) {
+    console.error(error);
+    ctx.images.clear();
+    await clearDraft(draft.db);
+    return false;
+  }
+  state.loadProject(decision.draft);
+  state.setUi({ tab: restoreTab(project) });
+  return true;
+}
+
+// Notice shown after a restore; its action starts over.
+function showRestored(ctx, startOver) {
+  return ctx.notices.show({
+    kind: 'info',
+    strong: 'Rascunho restaurado',
+    text: 'Você continua de onde parou.',
+    action: { label: 'Começar do zero', run: startOver },
+    dismissible: true,
+  });
+}
+
 // Saves after every change of what the draft holds, and at once when the page is hidden.
 function startAutosave(draft) {
   state.subscribe((next, prev) => {
@@ -414,8 +462,17 @@ export async function boot() {
   }
 
   let draft = null;
+  let closeRestored = () => {};
+  const startOver = async () => {
+    closeRestored();
+    state.resetProject();
+    ctx.images.clear();
+    state.setUi({ tab: 'model' });
+    if (draft?.db) await clearDraft(draft.db);
+  };
   try {
     draft = await openDraft(ctx);
+    if (draft.db && (await restoreDraft(ctx, draft))) closeRestored = showRestored(ctx, startOver);
   } catch (error) {
     console.error(error);
   }

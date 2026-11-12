@@ -97,6 +97,21 @@ function validExportOptions(options) {
   return bleedMm === null || (isNumber(bleedMm) && bleedMm >= 0 && bleedMm <= BLEED_MAX);
 }
 
+// What to do with what was read at start-up: 'none' without a record,
+// 'discard' for a record that does not parse (unknown version, bad field,
+// missing image), else 'restore' with the parsed draft.
+export function restoreDecision(record, storedIds) {
+  if (record === null || record === undefined) return { kind: 'none' };
+  const draft = parseDraft(record, storedIds);
+  if (draft === null) return { kind: 'discard' };
+  return { kind: 'restore', draft };
+}
+
+// Tab opened after a restore: Imagens when there is a layer, else Modelo.
+export function restoreTab(project) {
+  return project.layers.length > 0 ? 'images' : 'model';
+}
+
 // Image writes that bring the stored images in line with a record: the
 // record's images not stored yet (once each, in layer order) and the stored
 // images no layer of the record uses.
