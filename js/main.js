@@ -10,6 +10,8 @@ import {
   changesDraft,
   clearDraft,
   createAutosave,
+  hasUnsavedWork,
+  needsConfirm,
   openDraftDb,
   readDraft,
   restoreDecision,
@@ -351,7 +353,7 @@ export const DRAFT_FAILED = {
 // Draft kept in this browser: the database (null when IndexedDB is missing or
 // refused), whether the last attempt to open or save worked, and the autosave.
 async function openDraft(ctx) {
-  const draft = { db: null, available: false, autosave: null };
+  const draft = { db: null, available: false, autosave: null, resetting: false };
   const fail = (error) => {
     console.error(error);
     draft.available = false;
@@ -415,10 +417,56 @@ function showRestored(ctx, startOver) {
   });
 }
 
-// Saves after every change of what the draft holds, and at once when the page is hidden.
+// "Novo projeto" and "Começar do zero": asks first when a layer would be lost,
+// then empties the project, the images and the saved draft and opens Modelo.
+async function startNewProject(ctx, draft, closeRestored) {
+  if (needsConfirm(state.getState().project)) {
+    const ok = await ctx.confirm({
+      title: 'Começar um novo projeto?',
+      text: 'As imagens e o posicionamento atuais serão apagados deste navegador.',
+      ok: 'Apagar e começar',
+    });
+    if (!ok) return;
+  }
+  closeRestored();
+  if (draft) {
+    draft.autosave.cancel();
+    draft.resetting = true;
+  }
+  try {
+    state.resetProject();
+  } finally {
+    if (draft) draft.resetting = false;
+  }
+  ctx.images.clear();
+  state.setUi({ tab: 'model' });
+  if (!draft?.db) return;
+  try {
+    await clearDraft(draft.db);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Asks before leaving only when work would be lost (`hasUnsavedWork`).
+function warnOnLeave(draft) {
+  window.addEventListener('beforeunload', (event) => {
+    const unsaved = hasUnsavedWork({
+      pending: draft?.autosave.pending() ?? false,
+      draftAvailable: draft?.available ?? false,
+      layerCount: state.getState().project.layers.length,
+    });
+    if (!unsaved) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+}
+
+// Saves after every change of what the draft holds (not the reset of a new
+// project, which clears the draft instead), and at once when the page is hidden.
 function startAutosave(draft) {
   state.subscribe((next, prev) => {
-    if (changesDraft(next, prev)) draft.autosave.touch();
+    if (!draft.resetting && changesDraft(next, prev)) draft.autosave.touch();
   });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') draft.autosave.flush();
@@ -463,13 +511,7 @@ export async function boot() {
 
   let draft = null;
   let closeRestored = () => {};
-  const startOver = async () => {
-    closeRestored();
-    state.resetProject();
-    ctx.images.clear();
-    state.setUi({ tab: 'model' });
-    if (draft?.db) await clearDraft(draft.db);
-  };
+  const startOver = () => startNewProject(ctx, draft, () => closeRestored());
   try {
     draft = await openDraft(ctx);
     if (draft.db && (await restoreDraft(ctx, draft))) closeRestored = showRestored(ctx, startOver);
@@ -486,6 +528,8 @@ export async function boot() {
     () => mountImages(byId('panel-images'), ctx),
     () => mountExport(byId('panel-export'), ctx),
     () => draft && startAutosave(draft),
+    () => byId('btn-new-project').addEventListener('click', startOver),
+    () => warnOnLeave(draft),
   ]);
   return ctx;
 }

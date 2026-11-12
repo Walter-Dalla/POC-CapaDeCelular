@@ -112,6 +112,17 @@ export function restoreTab(project) {
   return project.layers.length > 0 ? 'images' : 'model';
 }
 
+// Whether starting a new project asks first: only when a layer would be lost.
+export function needsConfirm(project) {
+  return project.layers.length > 0;
+}
+
+// Whether leaving the page would lose work: a save pending or running, or a
+// draft that cannot be saved while the project has a layer.
+export function hasUnsavedWork({ pending, draftAvailable, layerCount }) {
+  return pending || (!draftAvailable && layerCount > 0);
+}
+
 // Image writes that bring the stored images in line with a record: the
 // record's images not stored yet (once each, in layer order) and the stored
 // images no layer of the record uses.
@@ -228,7 +239,8 @@ export function clearDraft(db) {
 
 // Debounced saving: touch() (re)starts the timer, the save runs `delay` ms
 // after the last touch, saves never overlap (a touch during a save schedules
-// one more after it) and flush() saves at once when something is pending.
+// one more after it), flush() saves at once when something is pending and
+// cancel() drops what is pending.
 // A rejected save is left to `save` to report.
 export function createAutosave({
   save,
@@ -283,6 +295,12 @@ export function createAutosave({
         return running;
       }
       return run();
+    },
+    // Forgets what is waiting to be saved; a save already running ends normally.
+    cancel() {
+      stopTimer();
+      dirty = false;
+      urgent = false;
     },
     pending() {
       return dirty || running !== null;
