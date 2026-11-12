@@ -1,14 +1,115 @@
 <!DOCTYPE html>
-
 <html lang="pt-BR">
     <head>
         <meta charset="utf-8">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; img-src 'self' blob: data:; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Leonel Games — Estúdio de capas</title>
+        <meta name="description" content="Monte a arte da capa do seu celular e baixe o arquivo pronto para impressão. Suas imagens não saem deste aparelho.">
+        <meta name="theme-color" content="#102B26">
+        <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;700&family=Silkscreen&display=swap">
         <link rel="stylesheet" href="./css/tokens.css">
         <link rel="stylesheet" href="./css/app.css">
+        <link rel="stylesheet" href="./css/layout.css">
+        <link rel="stylesheet" href="./css/panel-model.css">
+        <link rel="stylesheet" href="./css/panel-images.css">
+        <link rel="stylesheet" href="./css/panel-export.css">
+        <script type="module" src="./js/main.js"></script>
     </head>
     <body>
-        <main>
+        <div class="app">
+            <header class="app-header">
+                <div class="brand" role="img" aria-label="Leonel Games">
+                    <div class="brand__name">LE<span class="brand__mark"></span>NEL</div>
+                    <div class="brand__sub">GAMES</div>
+                </div>
+                <span class="app-header__divider" aria-hidden="true"></span>
+                <p class="app-header__title">Estúdio de capas</p>
+                <p class="app-header__privacy">
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+                    <span>Suas imagens não saem deste aparelho</span>
+                </p>
+                <button id="btn-new-project" type="button" class="btn btn--secondary app-header__new" aria-label="Novo projeto">
+                    <svg class="app-header__new-icon" aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg>
+                    <span class="app-header__new-label">Novo projeto</span>
+                </button>
+                <button id="model-chip" type="button" class="model-chip">
+                    <span class="model-chip__text">
+                        <span id="model-chip-name" class="model-chip__name">iPhone 15</span>
+                        <span id="model-chip-size" class="model-chip__size">71,6 × 147,6 mm</span>
+                    </span>
+                    <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+            </header>
 
-        </main>
+            <div class="workspace">
+                <main id="stage" class="stage" tabindex="0" role="group" aria-label="Palco">
+                    <div id="stage-toolbar" class="stage-bar stage-toolbar">
+                        <button id="btn-undo" type="button" class="btn btn--ghost stage-tool stage-tool--icon" aria-label="Desfazer"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+                        <button id="btn-redo" type="button" class="btn btn--ghost stage-tool stage-tool--icon" aria-label="Refazer"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+                        <button id="btn-fill" type="button" class="btn btn--ghost stage-tool"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="stage-tool__label">Preencher</span></button>
+                        <button id="btn-fit" type="button" class="btn btn--ghost stage-tool"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg><span class="stage-tool__label">Caber</span></button>
+                        <button id="btn-centre" type="button" class="btn btn--ghost stage-tool"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span class="stage-tool__label">Centralizar</span></button>
+                        <button id="btn-safe-margin" type="button" class="btn btn--ghost stage-tool stage-tool--icon" aria-pressed="true" aria-label="Margem de segurança"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="3"/><rect x="7.5" y="5.5" width="9" height="13" rx="1.5" stroke-dasharray="2 2"/></svg></button>
+                        <span class="stage-bar__divider" aria-hidden="true"></span>
+                        <div id="stage-readout" class="stage-readout"></div>
+                    </div>
+
+                    <div id="crop-bar" class="stage-bar crop-bar" hidden>
+                        <p class="crop-bar__text">Arraste os cantos para escolher a parte da imagem que fica na capa.</p>
+                        <button id="btn-crop-reset" type="button" class="btn btn--ghost">Imagem inteira</button>
+                        <button id="btn-crop-cancel" type="button" class="btn btn--secondary">Cancelar</button>
+                        <button id="btn-crop-apply" type="button" class="btn btn--primary">Aplicar recorte</button>
+                    </div>
+
+                    <p id="stage-caption" class="stage-caption" hidden></p>
+
+                    <div class="stage-box">
+                        <canvas id="stage-canvas" class="stage-canvas" role="img" aria-label="Capa do iPhone 15, sem imagens"></canvas>
+                        <div id="stage-empty" class="stage-empty">
+                            <p class="stage-empty__kicker">PRESS START</p>
+                            <h1 class="stage-empty__title">Sua capa começa aqui</h1>
+                            <ol class="stage-empty__steps">
+                                <li><span class="stage-empty__step" aria-hidden="true">1</span>Escolha o modelo do celular</li>
+                                <li><span class="stage-empty__step" aria-hidden="true">2</span>Adicione e posicione as imagens</li>
+                                <li><span class="stage-empty__step" aria-hidden="true">3</span>Baixe o arquivo para impressão</li>
+                            </ol>
+                            <button id="btn-empty-add" type="button" class="btn stage-empty__add"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M6 10l6-6 6 6M4 20h16"/></svg>Adicionar imagens</button>
+                            <p class="stage-empty__hint">ou solte os arquivos em qualquer lugar da tela</p>
+                        </div>
+                    </div>
+
+                    <ul id="stage-legend" class="stage-legend"></ul>
+
+                    <div id="notices" class="notices" aria-live="polite"></div>
+                </main>
+
+                <aside id="panel" class="panel" aria-label="Painel">
+                    <button id="drawer-handle" type="button" class="drawer-handle" aria-controls="panel" aria-expanded="false" aria-label="Expandir painel"></button>
+                    <div class="tabs" role="tablist" aria-label="Etapas">
+                        <button id="tab-model" type="button" class="tab" role="tab" aria-controls="panel-model" aria-selected="true" tabindex="0"><span class="tab__step">1</span>Modelo</button>
+                        <button id="tab-images" type="button" class="tab" role="tab" aria-controls="panel-images" aria-selected="false" tabindex="-1"><span class="tab__step">2</span>Imagens</button>
+                        <button id="tab-export" type="button" class="tab" role="tab" aria-controls="panel-export" aria-selected="false" tabindex="-1"><span class="tab__step">3</span>Exportar</button>
+                    </div>
+                    <section id="panel-model" class="panel__body" role="tabpanel" aria-labelledby="tab-model"></section>
+                    <section id="panel-images" class="panel__body" role="tabpanel" aria-labelledby="tab-images" hidden></section>
+                    <section id="panel-export" class="panel__body" role="tabpanel" aria-labelledby="tab-export" hidden></section>
+                </aside>
+            </div>
+        </div>
+
+        <input id="file-input" type="file" multiple accept="image/png,image/jpeg,image/webp" class="visually-hidden" tabindex="-1">
+
+        <dialog id="dialog-confirm" class="dialog" aria-labelledby="dialog-title" aria-describedby="dialog-text">
+            <h2 id="dialog-title" class="title"></h2>
+            <p id="dialog-text" class="support"></p>
+            <div class="dialog__actions">
+                <button id="dialog-cancel" type="button" class="btn btn--secondary">Cancelar</button>
+                <button id="dialog-ok" type="button" class="btn btn--primary"></button>
+            </div>
+        </dialog>
     </body>
 </html>
