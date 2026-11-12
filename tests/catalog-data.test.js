@@ -75,6 +75,7 @@ const failing = {
   'id empty': [{ ...valid, id: '' }, [`id: ${TEXT}`]],
   'id with upper case': [{ ...valid, id: 'Apple-iPhone' }, ['Apple-iPhone: id: só letras minúsculas, dígitos e hífen']],
   'id with space': [{ ...valid, id: 'apple iphone' }, ['apple iphone: id: só letras minúsculas, dígitos e hífen']],
+  'id reserved for the custom model': [{ ...valid, id: 'custom' }, ['custom: id: reservado para o modelo personalizado']],
   'brand empty': [{ ...valid, brand: '' }, [`${P}brand: ${TEXT}`]],
   'brand not a string': [{ ...valid, brand: 12 }, [`${P}brand: ${TEXT}`]],
   'name empty': [{ ...valid, name: '   ' }, [`${P}name: ${TEXT}`]],

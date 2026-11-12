@@ -5,6 +5,8 @@ const MAX_CASE_SIDE = 500;
 const MAX_BLEED = 10;
 const MAX_SAFE_MARGIN = 20;
 const ID_PATTERN = /^[a-z0-9-]+$/;
+// Reserved for the model whose measures the user types; no catalog entry may use it.
+export const CUSTOM_MODEL_ID = 'custom';
 
 const isNumber = (value) => typeof value === 'number' && Number.isFinite(value);
 const isText = (value) => typeof value === 'string' && value.trim() !== '';
@@ -61,6 +63,8 @@ export function validateModel(entry) {
     errors.push('id: deve ser um texto não vazio');
   } else if (!ID_PATTERN.test(entry.id)) {
     errors.push(`${prefix}id: só letras minúsculas, dígitos e hífen`);
+  } else if (entry.id === CUSTOM_MODEL_ID) {
+    errors.push(`${prefix}id: reservado para o modelo personalizado`);
   }
   if (!isText(entry.brand)) errors.push(`${prefix}brand: deve ser um texto não vazio`);
   if (!isText(entry.name)) errors.push(`${prefix}name: deve ser um texto não vazio`);
@@ -116,7 +120,6 @@ export function validateCatalog(list) {
 }
 
 export const DEFAULT_MODEL_ID = 'apple-iphone-15';
-export const CUSTOM_MODEL_ID = 'custom';
 const CUSTOM_MODEL_NAME = 'Modelo personalizado';
 
 export function normalizeSearch(text) {
