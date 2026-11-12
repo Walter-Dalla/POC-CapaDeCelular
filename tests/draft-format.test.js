@@ -197,7 +197,23 @@ const REJECTED = [
   ['dpi "300"', (r) => { r.exportOptions.dpi = '300'; }],
   ['clip circle', (r) => { r.exportOptions.clip = 'circle'; }],
   ['image not available', (r) => { r.project.layers[0].imageId = 'img-z'; }],
+  ['rotation -180', (r) => { r.project.layers[0].rotation = -180; }],
+  ['rotation above 180', (r) => { r.project.layers[0].rotation = 181; }],
+  ['rotation 540', (r) => { r.project.layers[0].rotation = 540; }],
+  ['two layers with the same id', (r) => { r.project.layers.push({ ...r.project.layers[0], cx: 5 }); }],
 ];
+
+test('rotation 180 and a width outside 5-2000 mm (a crop can produce it) are kept', () => {
+  const record = validRecord();
+  record.project.layers[0].rotation = 180;
+  record.project.layers[0].width = 2.5;
+  record.project.layers.push({ ...record.project.layers[0], id: 'l2', width: 2400, rotation: -179.5 });
+  const parsed = parseDraft(record, ['img-a']);
+  assert.equal(parsed.project.layers[0].rotation, 180);
+  assert.equal(parsed.project.layers[0].width, 2.5);
+  assert.equal(parsed.project.layers[1].width, 2400);
+  assert.equal(parsed.project.layers[1].rotation, -179.5);
+});
 
 for (const [name, change] of REJECTED) {
   test(`rejected: ${name}`, () => {

@@ -76,6 +76,7 @@ function validLayer(layer, imageIds) {
   if (!isString(id) || id === '' || !isString(name) || !isString(imageId)) return false;
   if (![naturalWidth, naturalHeight, cx, cy, width, rotation].every(isNumber)) return false;
   if (naturalWidth <= 0 || naturalHeight <= 0 || width <= 0) return false;
+  if (rotation <= -180 || rotation > 180) return false;
   if (!validCrop(crop)) return false;
   return imageIds.has(imageId);
 }
@@ -86,7 +87,8 @@ function validProject(project, imageIds) {
   if (!isString(modelId) || modelId === '') return false;
   if (!validCustomModel(customModel)) return false;
   if (!isString(background) || !COLOR_PATTERN.test(background)) return false;
-  return Array.isArray(layers) && layers.every((layer) => validLayer(layer, imageIds));
+  if (!Array.isArray(layers) || !layers.every((layer) => validLayer(layer, imageIds))) return false;
+  return new Set(layers.map((layer) => layer.id)).size === layers.length;
 }
 
 function validExportOptions(options) {
