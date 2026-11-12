@@ -21,7 +21,7 @@ test('formatMm: one fixed decimal with a comma', () => {
 
 test('formatSize', () => {
   assert.equal(formatSize(71.6, 147.6), '71,6 × 147,6 mm');
-  assert.equal(formatSize(71.6, 147.6), '71,6 × 147,6 mm');
+  assert.equal(formatSize(71, 147), '71,0 × 147,0 mm');
 });
 
 test('parseMm accepts comma, dot, suffix and spaces', () => {
@@ -54,7 +54,7 @@ test('plural', () => {
 
 test('formatDegrees uses U+2212 for negatives', () => {
   assert.equal(formatDegrees(-8), '−8°');
-  assert.equal(formatDegrees(-8), '−8°');
+  assert.equal(formatDegrees(-7.6), '−8°');
   assert.equal(formatDegrees(0), '0°');
   assert.equal(formatDegrees(-0.2), '0°');
   assert.equal(formatDegrees(45), '45°');
