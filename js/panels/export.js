@@ -362,7 +362,32 @@ function buildSummary(content, ctx) {
   return render;
 }
 
-const DOWNLOAD_ICON = [['path', { d: 'M12 4v12M6 10l6 6 6-6M4 20h16' }]];
+// The two fixed notes at the end of the panel: where the file is made and its colour space.
+export function exportNotes() {
+  return {
+    privacy: {
+      strong: 'Suas imagens não saem deste aparelho.',
+      text: 'O arquivo é gerado aqui, no seu navegador.',
+    },
+    colour: 'O arquivo sai em RGB (sRGB). A conversão para as cores da impressora fica com o programa de impressão.',
+  };
+}
+
+const LOCK_ICON = [
+  ['rect', { x: '5', y: '11', width: '14', height: '9', rx: '2' }],
+  ['path', { d: 'M8 11V8a4 4 0 0 1 8 0v3' }],
+];
+
+function buildNotes(content) {
+  const notes = exportNotes();
+  const privacy = element('div', 'notice notice--info');
+  const body = element('span');
+  body.append(element('strong', '', notes.privacy.strong), document.createTextNode(` ${notes.privacy.text}`));
+  privacy.append(icon(LOCK_ICON, 20, 2, 'panel-export__icon'), body);
+  content.append(privacy, element('p', 'support panel-export__colour', notes.colour));
+}
+
+const DOWNLOAD_ICON =[['path', { d: 'M12 4v12M6 10l6 6 6-6M4 20h16' }]];
 const EXPORT_FAILED = 'Não foi possível gerar o arquivo.';
 
 // The "Baixar arquivo" button: renders the file, downloads it, and shows an error notice when the
@@ -404,6 +429,7 @@ export function mount(container, ctx) {
 
   const options = buildOptions(content, ctx);
   const renderSummary = buildSummary(content, ctx);
+  buildNotes(content);
   buildDownload(footer, ctx);
 
   ctx.state.subscribe((state, prev) => {

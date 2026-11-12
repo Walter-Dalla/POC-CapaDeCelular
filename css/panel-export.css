@@ -12,6 +12,9 @@
   font-size: 18px;
 }
 
+/* The board's 18px gap and 14px row padding have no token: the nearest ones are used. The panel
+   has no compact element, so the collapsed drawer shows nothing of it; the shell opens the drawer
+   expanded on this tab. */
 .panel-export {
   display: flex;
   flex: 1 0 auto;
@@ -142,6 +145,11 @@
 /* Low-resolution warning */
 .panel-export__icon {
   flex-shrink: 0;
+}
+
+/* Privacy and colour notes */
+.panel-export__colour {
+  margin: 0;
 }
 
 .panel-export__link {
