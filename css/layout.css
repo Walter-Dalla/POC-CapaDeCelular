@@ -148,6 +148,11 @@
   color: var(--color-text-3);
 }
 
+.stage-readout:empty,
+.stage-bar__divider:has(+ .stage-readout:empty) {
+  display: none;
+}
+
 .stage-readout strong {
   color: var(--color-text);
 }
