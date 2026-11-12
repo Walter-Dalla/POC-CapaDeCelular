@@ -106,3 +106,14 @@ test('panel-images.css: from 900px the layer actions keep one row with a 4px gap
   // The 390px compact card keeps its own 4px gap.
   assert.match(css, /\.layer-card--compact \.layer-card__actions \{[^}]*gap: var\(--space-4\);/);
 });
+
+// Centred text taller than the room under the cutout would spill above the
+// top padding; "safe" aligns it to the start instead.
+test('layout.css: the placed empty state never rises above its top padding', () => {
+  assert.equal(cssValue('layout.css', '.stage-empty--placed', 'justify-content'), 'safe center');
+  const css = readFileSync(new URL('../css/layout.css', import.meta.url), 'utf8');
+  const mobile = [...css.matchAll(/@media \(max-width: 899px\) \{([\s\S]*?)\n\}/g)].map((match) => match[1]).join('\n');
+  assert.match(mobile, /\.stage-empty--placed \{[^}]*gap: var\(--space-12\);/);
+  // The desktop rule keeps the 16px rows of the empty state.
+  assert.match(css, /\n\.stage-empty \{[^}]*gap: var\(--space-16\);/);
+});
