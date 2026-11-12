@@ -14,6 +14,7 @@ import {
   newId,
   raiseLayer,
   removeLayer,
+  setBackground,
 } from '../layers.js';
 import { formatDpi, formatPx, plural } from '../format.js';
 
@@ -77,6 +78,27 @@ export function layerListView(project, ui) {
         lowRes: isLowRes(layer),
       })),
   };
+}
+
+// Background colours offered as swatches. The swatch fill is set through the
+// CSSOM, so these are the only colour literals of the panel.
+export const BACKGROUNDS = [
+  { label: 'Branco', color: '#FFFFFF' },
+  { label: 'Preto', color: '#111111' },
+  { label: 'Verde Leonel', color: '#24564C' },
+  { label: 'Roxo', color: '#6B2FA0' },
+  { label: 'Amarelo', color: '#FFC531' },
+];
+
+// Swatches of the "Cor de fundo" section for the project's background colour;
+// `custom` when it is none of them.
+export function backgroundView(color) {
+  const current = String(color).toUpperCase();
+  const swatches = BACKGROUNDS.map(({ label, color: swatchColor }) => {
+    const pressed = swatchColor === current;
+    return { label, color: swatchColor, pressed, ariaLabel: pressed ? `${label}, selecionado` : label };
+  });
+  return { swatches, custom: !swatches.some((swatch) => swatch.pressed) };
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -338,6 +360,64 @@ function buildList(content, ctx) {
   return render;
 }
 
+// "Cor de fundo" section; returns `render`, which marks the swatch of the current colour.
+function buildBackground(content, ctx) {
+  const section = element('section', 'panel-images__section');
+  const row = element('div', 'panel-images__swatches');
+  row.setAttribute('role', 'group');
+  row.setAttribute('aria-label', 'Cor de fundo');
+  section.append(element('h2', 'title', 'Cor de fundo'), row);
+  content.append(section);
+
+  const choose = (color, close) => {
+    ctx.state.updateProject((project) => setBackground(project, color));
+    if (close) ctx.state.commit();
+  };
+
+  const swatches = BACKGROUNDS.map(({ color }) => {
+    const swatch = button('swatch');
+    swatch.style.backgroundColor = color;
+    swatch.addEventListener('click', () => choose(color, true));
+    row.append(swatch);
+    return swatch;
+  });
+
+  const other = button('btn btn--secondary panel-images__other', 'Outra cor…');
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.className = 'visually-hidden';
+  picker.tabIndex = -1;
+  picker.setAttribute('aria-hidden', 'true');
+  other.addEventListener('click', () => {
+    if (typeof picker.showPicker === 'function') {
+      try {
+        picker.showPicker();
+        return;
+      } catch {
+        // Browsers that refuse showPicker here still open the chooser on click.
+      }
+    }
+    picker.click();
+  });
+  picker.addEventListener('input', () => choose(picker.value, false));
+  picker.addEventListener('change', () => choose(picker.value, true));
+  row.append(other, picker);
+
+  function render() {
+    const { background } = ctx.state.getState().project;
+    const view = backgroundView(background);
+    view.swatches.forEach((swatch, index) => {
+      swatches[index].setAttribute('aria-pressed', String(swatch.pressed));
+      swatches[index].setAttribute('aria-label', swatch.ariaLabel);
+    });
+    other.setAttribute('aria-pressed', String(view.custom));
+    picker.value = background.toLowerCase();
+  }
+
+  render();
+  return render;
+}
+
 // Dashed button at the top of the panel that opens the file chooser.
 function dropButton(ctx) {
   const drop = button('inset panel-images__drop');
@@ -360,9 +440,11 @@ export function mount(container, ctx) {
   content.append(dropButton(ctx));
   container.append(content);
   const renderList = buildList(content, ctx);
+  const renderBackground = buildBackground(content, ctx);
 
   ctx.files.handle = (files) => intake(files, ctx);
-  ctx.state.subscribe(() => {
+  ctx.state.subscribe((state, prev) => {
     renderList();
+    if (state.project.background !== prev.project.background) renderBackground();
   });
 }
