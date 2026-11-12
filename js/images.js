@@ -90,6 +90,19 @@ export function createRegistry({ decode = defaultDecode, newId = defaultNewId } 
         if (!keep.has(id)) token.cancelled = true;
       }
     },
+    // Closes and forgets exactly the given ids and discards their pending
+    // decodes; every other image and decode is left alone, unknown ids ignored.
+    drop(ids) {
+      for (const id of ids) {
+        const entry = entries.get(id);
+        if (entry) {
+          closeBitmap(entry.bitmap);
+          entries.delete(id);
+        }
+        const token = pending.get(id);
+        if (token) token.cancelled = true;
+      }
+    },
     // Closes and forgets every image, discarding pending decodes.
     clear() {
       for (const entry of entries.values()) closeBitmap(entry.bitmap);

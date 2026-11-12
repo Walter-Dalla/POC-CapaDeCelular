@@ -5,6 +5,20 @@ import { mountStage } from './stage.js';
 import { createRegistry, defaultDecode } from './images.js';
 import { newId } from './layers.js';
 import { mountGestures } from './gestures.js';
+import { mountHistoryControls } from './controls.js';
+import {
+  changesDraft,
+  clearDraft,
+  createAutosave,
+  hasUnsavedWork,
+  needsConfirm,
+  openDraftDb,
+  readDraft,
+  restoreDecision,
+  restoreTab,
+  saveDraft,
+  serializeDraft,
+} from './draft.js';
 import { mount as mountModel } from './panels/model.js';
 import { mount as mountImages } from './panels/images.js';
 import { mount as mountExport } from './panels/export.js';
@@ -329,6 +343,138 @@ function reportBootFailure(error) {
   }
 }
 
+export const DRAFT_FAILED = {
+  kind: 'warn',
+  strong: 'Não foi possível salvar o rascunho neste navegador',
+  text: 'Seu trabalho continua aberto, mas será perdido ao fechar a página.',
+  once: 'draft-failed',
+};
+
+// Draft kept in this browser: the database (null when IndexedDB is missing or
+// refused), whether the last attempt to open or save worked, and the autosave.
+async function openDraft(ctx) {
+  const draft = { db: null, available: false, autosave: null, resetting: false };
+  const fail = (error) => {
+    console.error(error);
+    draft.available = false;
+    ctx.notices.show(DRAFT_FAILED);
+  };
+  try {
+    draft.db = await openDraftDb();
+    draft.available = true;
+  } catch (error) {
+    fail(error);
+  }
+  draft.autosave = createAutosave({
+    async save({ cancelled }) {
+      if (!draft.db) return;
+      try {
+        await saveDraft(draft.db, serializeDraft(state.getState()), (id) => ctx.images.getBlob(id));
+        draft.available = true;
+      } catch (error) {
+        // A save overtaken by "Novo projeto" may lose its images mid-way: not a failure.
+        if (cancelled()) return;
+        fail(error);
+      }
+    },
+  });
+  return draft;
+}
+
+// Puts the saved draft back: decodes its images, loads the project and opens
+// its tab. A draft that does not parse or whose image fails to decode is
+// cleared and the editor starts empty, without a message. Resolves true when
+// the draft was restored.
+async function restoreDraft(ctx, draft) {
+  const saved = await readDraft(draft.db);
+  const decision = restoreDecision(saved?.record ?? null, saved ? [...saved.blobs.keys()] : []);
+  if (decision.kind === 'none') return false;
+  if (decision.kind === 'discard') {
+    await clearDraft(draft.db);
+    return false;
+  }
+  const { project } = decision.draft;
+  const imageIds = [...new Set(project.layers.map((layer) => layer.imageId))];
+  try {
+    await Promise.all(imageIds.map((id) => ctx.images.restore(id, saved.blobs.get(id))));
+  } catch (error) {
+    console.error(error);
+    ctx.images.clear();
+    await clearDraft(draft.db);
+    return false;
+  }
+  state.loadProject(decision.draft);
+  state.setUi({ tab: restoreTab(project) });
+  return true;
+}
+
+// Notice shown after a restore; its action starts over.
+function showRestored(ctx, startOver) {
+  return ctx.notices.show({
+    kind: 'info',
+    strong: 'Rascunho restaurado',
+    text: 'Você continua de onde parou.',
+    action: { label: 'Começar do zero', run: startOver },
+    dismissible: true,
+  });
+}
+
+// "Novo projeto" and "Começar do zero": asks first when a layer would be lost,
+// then empties the project, the images and the saved draft and opens Modelo.
+async function startNewProject(ctx, draft, closeRestored) {
+  if (needsConfirm(state.getState().project)) {
+    const ok = await ctx.confirm({
+      title: 'Começar um novo projeto?',
+      text: 'As imagens e o posicionamento atuais serão apagados deste navegador.',
+      ok: 'Apagar e começar',
+    });
+    if (!ok) return;
+  }
+  closeRestored();
+  if (draft) {
+    draft.autosave.cancel();
+    draft.resetting = true;
+  }
+  try {
+    state.resetProject();
+  } finally {
+    if (draft) draft.resetting = false;
+  }
+  ctx.images.clear();
+  state.setUi({ tab: 'model' });
+  if (!draft?.db) return;
+  try {
+    await clearDraft(draft.db);
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+// Asks before leaving only when work would be lost (`hasUnsavedWork`).
+function warnOnLeave(draft) {
+  window.addEventListener('beforeunload', (event) => {
+    const unsaved = hasUnsavedWork({
+      pending: draft?.autosave.pending() ?? false,
+      draftAvailable: draft?.available ?? false,
+      layerCount: state.getState().project.layers.length,
+    });
+    if (!unsaved) return;
+    event.preventDefault();
+    event.returnValue = '';
+  });
+}
+
+// Saves after every change of what the draft holds (not the reset of a new
+// project, which clears the draft instead), and at once when the page is hidden.
+function startAutosave(draft) {
+  state.subscribe((next, prev) => {
+    if (!draft.resetting && changesDraft(next, prev)) draft.autosave.touch();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') draft.autosave.flush();
+  });
+}
+
 export async function boot() {
   const drawer = createDrawer();
   const ctx = {
@@ -365,13 +511,27 @@ export async function boot() {
     ctx.notices.show({ kind: 'error', strong: 'Não foi possível carregar os modelos.', text: 'Use o modelo personalizado.' });
   }
 
+  let draft = null;
+  let closeRestored = () => {};
+  const startOver = () => startNewProject(ctx, draft, () => closeRestored());
+  try {
+    draft = await openDraft(ctx);
+    if (draft.db && (await restoreDraft(ctx, draft))) closeRestored = showRestored(ctx, startOver);
+  } catch (error) {
+    console.error(error);
+  }
+
   mountAll(ctx, [
     () => linkTabs(ctx),
     () => mountStage(ctx),
     () => mountGestures(ctx),
+    () => mountHistoryControls(ctx),
     () => mountModel(byId('panel-model'), ctx),
     () => mountImages(byId('panel-images'), ctx),
     () => mountExport(byId('panel-export'), ctx),
+    () => draft && startAutosave(draft),
+    () => byId('btn-new-project').addEventListener('click', startOver),
+    () => warnOnLeave(draft),
   ]);
   return ctx;
 }

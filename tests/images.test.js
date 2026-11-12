@@ -115,6 +115,44 @@ test('a decode kept by release still lands', async () => {
   assert.deepEqual(registry.ids(), ['kept']);
 });
 
+test('drop closes and forgets only the named images', async () => {
+  const fake = fakeDecoder();
+  const registry = createRegistry({ decode: fake.decode, newId: sequentialIds() });
+  const added = [registry.add(blob('a')), registry.add(blob('b')), registry.add(blob('c'))];
+  const bitmaps = fake.calls.map((call) => call.resolve(10, 10));
+  await Promise.all(added);
+  registry.drop(['id-1', 'id-3', 'unknown']);
+  assert.deepEqual(
+    bitmaps.map((b) => b.closed),
+    [true, false, true],
+  );
+  assert.deepEqual(registry.ids(), ['id-2']);
+});
+
+test('a pending decode of another id survives a drop and lands', async () => {
+  const fake = fakeDecoder();
+  const registry = createRegistry({ decode: fake.decode, newId: sequentialIds() });
+  const done = registry.add(blob('a'));
+  fake.calls[0].resolve(10, 10);
+  await done;
+  const pending = registry.add(blob('b'));
+  registry.drop(['id-1']);
+  fake.calls[1].resolve(30, 40);
+  assert.deepEqual(await pending, { imageId: 'id-2', naturalWidth: 30, naturalHeight: 40 });
+  assert.deepEqual(registry.ids(), ['id-2']);
+});
+
+test('a pending decode of a dropped id rejects as discarded', async () => {
+  const fake = fakeDecoder();
+  const registry = createRegistry({ decode: fake.decode, newId: sequentialIds() });
+  const pending = registry.restore('gone', blob('gone'));
+  registry.drop(new Set(['gone']));
+  const late = fake.calls[0].resolve(10, 10);
+  await assert.rejects(pending, { message: 'descartada' });
+  assert.equal(late.closed, true);
+  assert.deepEqual(registry.ids(), []);
+});
+
 test('clear during a pending decode rejects it and closes the late bitmap', async () => {
   const fake = fakeDecoder();
   const registry = createRegistry({ decode: fake.decode, newId: sequentialIds() });

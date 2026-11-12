@@ -334,6 +334,25 @@ test('subscribers get (state, prev) synchronously and can unsubscribe', () => {
   assert.equal(seen.length, 1);
 });
 
+test('a change made inside a subscriber reaches later subscribers after the current one', () => {
+  const store = createStore();
+  const initial = store.getState();
+  store.subscribe((state, prev) => {
+    if (state.project !== prev.project) store.setUi({ tab: 'images' });
+  });
+  const seen = [];
+  store.subscribe((state, prev) => seen.push({ state, prev, latest: store.getState() }));
+  store.updateProject((p) => ({ ...p, background: '#000000' }));
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].prev, initial);
+  assert.equal(seen[0].state.project.background, '#000000');
+  assert.equal(seen[0].state.ui.tab, 'model');
+  assert.equal(seen[0].latest.ui.tab, 'images');
+  assert.equal(seen[1].prev, seen[0].state);
+  assert.equal(seen[1].state.ui.tab, 'images');
+  assert.equal(seen[1].state, store.getState());
+});
+
 test('a subscriber is not called for a no-op', () => {
   const store = createStore();
   let calls = 0;
