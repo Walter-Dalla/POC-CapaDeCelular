@@ -1,6 +1,9 @@
-// Exportar panel: the export options (format, resolution, cut, bleed, camera hole, mirror).
-import { effectiveBleed } from '../geometry.js';
-import { parseMm } from '../format.js';
+// Exportar panel: the export options (format, resolution, cut, bleed, camera hole, mirror), the
+// order field, the summary of the final file and the low-resolution warning.
+import { effectiveBleed, exportSize } from '../geometry.js';
+import { formatDpi, formatPx, formatSize, parseMm, plural } from '../format.js';
+import { exportFileName } from '../export-name.js';
+import { effectiveDpi, lowResLayers } from '../layers.js';
 
 const FORMATS = ['png', 'jpeg'];
 const DPIS = [150, 300, 600];
@@ -66,6 +69,42 @@ export function optionsView(exportOptions, model) {
     bleed: { checked: exportOptions.bleedOn, text: bleedText(bleed), fieldDisabled: !exportOptions.bleedOn },
     cameraHole: { checked: exportOptions.cameraHole, disabled: jpeg },
     mirror: { checked: exportOptions.mirror },
+  };
+}
+
+// Warning about the layers printed below the minimum resolution, naming the lowest one; null
+// when every layer is sharp enough.
+function lowResWarning(project) {
+  const low = lowResLayers(project);
+  if (low.length === 0) return null;
+  const lowest = low.reduce((min, layer) => (effectiveDpi(layer) < effectiveDpi(min) ? layer : min));
+  return {
+    strong: `${plural(low.length, 'imagem', 'imagens')} com baixa resolução.`,
+    text: `"${lowest.name}" está a ${formatDpi(effectiveDpi(lowest))}.`,
+    layerId: lowest.id,
+  };
+}
+
+// Texts of the "ARQUIVO FINAL" summary for the current state and model: size in mm and in px with
+// their notes, the file name and the low-resolution warning.
+export function summaryView(state, model) {
+  const { exportOptions } = state;
+  const bleed = effectiveBleed(exportOptions, model);
+  const size = exportSize(model, bleed, exportOptions.dpi);
+  return {
+    sizeMm: formatSize(size.widthMm, size.heightMm),
+    sizeNote: bleed > 0 ? `capa + ${bleedText(bleed)} de sangria por lado` : 'capa sem sangria',
+    sizePx: formatPx(size.widthPx, size.heightPx),
+    pxNote: `a ${exportOptions.dpi} DPI · cores em RGB`,
+    fileName: exportFileName({
+      orderId: state.orderId,
+      modelId: model.id,
+      widthMm: size.widthMm,
+      heightMm: size.heightMm,
+      dpi: exportOptions.dpi,
+      format: exportOptions.format,
+    }),
+    warning: lowResWarning(state.project),
   };
 }
 
@@ -219,6 +258,109 @@ function buildOptions(content, ctx) {
   return { render, sync };
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Stroke icon in a 24 × 24 box drawn in the current text colour.
+function icon(paths, size, strokeWidth, className) {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  const attrs = {
+    'aria-hidden': 'true',
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': strokeWidth,
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+  };
+  if (className) attrs.class = className;
+  for (const [key, value] of Object.entries(attrs)) svg.setAttribute(key, String(value));
+  for (const [tag, shapeAttrs] of paths) {
+    const shape = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(shapeAttrs)) shape.setAttribute(key, value);
+    svg.append(shape);
+  }
+  return svg;
+}
+
+const WARN_ICON = [['path', { d: 'M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5' }]];
+const ORDER_MAX_CHARS = 40;
+
+// The "Pedido ou cliente" field, the final file summary and the low-resolution warning; returns
+// `render`, which shows them for the current state.
+function buildSummary(content, ctx) {
+  const { state } = ctx;
+
+  const order = element('div', 'field');
+  const orderLabel = element('label', 'field__label', 'Pedido ou cliente');
+  orderLabel.htmlFor = 'export-order';
+  const orderInput = element('input', 'field__input');
+  orderInput.id = 'export-order';
+  orderInput.type = 'text';
+  orderInput.maxLength = ORDER_MAX_CHARS;
+  orderInput.autocomplete = 'off';
+  orderInput.setAttribute('aria-describedby', 'export-order-help');
+  const orderHelp = element('p', 'support panel-export__help', 'Opcional. Entra no começo do nome do arquivo.');
+  orderHelp.id = 'export-order-help';
+  order.append(orderLabel, orderInput, orderHelp);
+  orderInput.addEventListener('input', () => state.setOrderId(orderInput.value));
+
+  const summary = element('section', 'inset panel-export__summary');
+  summary.setAttribute('aria-labelledby', 'export-summary-title');
+  const title = element('h2', 'label-caps panel-export__summary-title', 'ARQUIVO FINAL');
+  title.id = 'export-summary-title';
+  const values = element('div', 'panel-export__values');
+  const sizeMm = element('div', 'panel-export__value');
+  const sizeNote = element('div', 'support');
+  const sizePx = element('div', 'panel-export__value');
+  const pxNote = element('div', 'support');
+  const mmBlock = element('div');
+  mmBlock.append(sizeMm, sizeNote);
+  const pxBlock = element('div');
+  pxBlock.append(sizePx, pxNote);
+  values.append(mmBlock, pxBlock);
+  const fileName = element('div', 'panel-export__file');
+  summary.append(title, values, fileName);
+
+  const warning = element('div', 'notice notice--warn');
+  warning.setAttribute('role', 'status');
+  warning.hidden = true;
+  const warningBody = element('span');
+  const warningStrong = element('strong');
+  const warningText = document.createTextNode('');
+  const showLayer = element('button', 'panel-export__link', 'Ver camada');
+  showLayer.type = 'button';
+  warningBody.append(warningStrong, warningText, showLayer);
+  warning.append(icon(WARN_ICON, 20, 2, 'panel-export__icon'), warningBody);
+  let warningLayerId = null;
+  showLayer.addEventListener('click', () => {
+    if (warningLayerId === null) return;
+    state.setUi({ selectedLayerId: warningLayerId });
+    ctx.tabs.show('images');
+  });
+
+  content.append(order, summary, warning);
+
+  function render() {
+    const current = state.getState();
+    if (document.activeElement !== orderInput && orderInput.value !== current.orderId) orderInput.value = current.orderId;
+    const view = summaryView(current, ctx.model());
+    sizeMm.textContent = view.sizeMm;
+    sizeNote.textContent = view.sizeNote;
+    sizePx.textContent = view.sizePx;
+    pxNote.textContent = view.pxNote;
+    fileName.textContent = view.fileName;
+    warning.hidden = view.warning === null;
+    warningLayerId = view.warning ? view.warning.layerId : null;
+    warningStrong.textContent = view.warning ? view.warning.strong : '';
+    warningText.textContent = view.warning ? ` ${view.warning.text} ` : '';
+  }
+
+  render();
+  return render;
+}
+
 export function mount(container, ctx) {
   // Without a store there are no options to change.
   if (!ctx.state) return;
@@ -226,11 +368,20 @@ export function mount(container, ctx) {
   container.append(content);
 
   const options = buildOptions(content, ctx);
+  const renderSummary = buildSummary(content, ctx);
 
   ctx.state.subscribe((state, prev) => {
+    const modelChanged =
+      state.project.modelId !== prev.project.modelId || state.project.customModel !== prev.project.customModel;
     if (state.exportOptions !== prev.exportOptions) options.sync();
-    else if (state.project.modelId !== prev.project.modelId || state.project.customModel !== prev.project.customModel) {
-      options.render();
+    else if (modelChanged) options.render();
+    if (
+      modelChanged ||
+      state.exportOptions !== prev.exportOptions ||
+      state.orderId !== prev.orderId ||
+      state.project.layers !== prev.project.layers
+    ) {
+      renderSummary();
     }
   });
 }

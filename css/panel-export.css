@@ -91,3 +91,54 @@
 .panel-export .switch:disabled::after {
   background: var(--color-text-3);
 }
+
+/* Order field */
+.panel-export__help {
+  margin: 0;
+}
+
+/* Final file summary */
+.panel-export__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.panel-export__summary-title {
+  margin: 0;
+  font-weight: 400;
+}
+
+.panel-export__values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.panel-export__value {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 22px;
+}
+
+.panel-export__file {
+  font-size: 13px;
+  color: var(--color-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* Low-resolution warning */
+.panel-export__icon {
+  flex-shrink: 0;
+}
+
+.panel-export__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
