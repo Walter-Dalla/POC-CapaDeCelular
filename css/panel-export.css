@@ -147,11 +147,6 @@
   flex-shrink: 0;
 }
 
-/* Privacy and colour notes */
-.panel-export__colour {
-  margin: 0;
-}
-
 .panel-export__link {
   padding: 0;
   border: 0;
@@ -161,4 +156,9 @@
   font-weight: 700;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Privacy and colour notes */
+.panel-export__colour {
+  margin: 0;
 }

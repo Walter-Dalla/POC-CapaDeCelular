@@ -387,7 +387,7 @@ function buildNotes(content) {
   content.append(privacy, element('p', 'support panel-export__colour', notes.colour));
 }
 
-const DOWNLOAD_ICON =[['path', { d: 'M12 4v12M6 10l6 6 6-6M4 20h16' }]];
+const DOWNLOAD_ICON = [['path', { d: 'M12 4v12M6 10l6 6 6-6M4 20h16' }]];
 const EXPORT_FAILED = 'Não foi possível gerar o arquivo.';
 
 // The "Baixar arquivo" button: renders the file, downloads it, and shows an error notice when the
