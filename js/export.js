@@ -11,6 +11,7 @@ const MAX_SIDE_PX = 8192;
 const MAX_AREA_PX = 16777216;
 export const LIMIT_MESSAGE = 'Arquivo grande demais para este navegador. Escolha um DPI menor.';
 const JPEG_QUALITY = 0.95;
+const REVOKE_DELAY_MS = 60000;
 
 // Message when a canvas of this size is too large for common browsers, else null.
 export function checkExportLimit(widthPx, heightPx) {
@@ -104,5 +105,6 @@ export function download(blob, fileName) {
   document.body.append(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  // Safari can cancel a download whose URL is revoked right after the click.
+  setTimeout(() => URL.revokeObjectURL(url), REVOKE_DELAY_MS);
 }
