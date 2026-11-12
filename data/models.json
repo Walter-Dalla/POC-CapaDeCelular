@@ -1,0 +1,56 @@
+[
+  {
+    "id": "apple-iphone-13",
+    "brand": "Apple",
+    "name": "iPhone 13",
+    "case": { "width": 71.5, "height": 146.7, "cornerRadius": 12 },
+    "cutouts": [{ "shape": "roundRect", "x": 4, "y": 4, "width": 32, "height": 32, "radius": 9 }],
+    "bleed": 2,
+    "verified": false
+  },
+  {
+    "id": "apple-iphone-14",
+    "brand": "Apple",
+    "name": "iPhone 14",
+    "case": { "width": 71.5, "height": 146.7, "cornerRadius": 12 },
+    "cutouts": [{ "shape": "roundRect", "x": 4, "y": 4, "width": 33, "height": 33, "radius": 9 }],
+    "bleed": 2,
+    "verified": false
+  },
+  {
+    "id": "apple-iphone-15",
+    "brand": "Apple",
+    "name": "iPhone 15",
+    "case": { "width": 71.6, "height": 147.6, "cornerRadius": 12 },
+    "cutouts": [{ "shape": "roundRect", "x": 4, "y": 4, "width": 34, "height": 34, "radius": 9 }],
+    "bleed": 2,
+    "verified": false
+  },
+  {
+    "id": "apple-iphone-15-pro-max",
+    "brand": "Apple",
+    "name": "iPhone 15 Pro Max",
+    "case": { "width": 76.7, "height": 159.9, "cornerRadius": 13 },
+    "cutouts": [{ "shape": "roundRect", "x": 4, "y": 4, "width": 38, "height": 38, "radius": 10 }],
+    "bleed": 2,
+    "verified": false
+  },
+  {
+    "id": "samsung-galaxy-s24",
+    "brand": "Samsung",
+    "name": "Galaxy S24",
+    "case": { "width": 70.6, "height": 147.0, "cornerRadius": 9 },
+    "cutouts": [{ "shape": "roundRect", "x": 5, "y": 5, "width": 12, "height": 36, "radius": 6 }],
+    "bleed": 2,
+    "verified": false
+  },
+  {
+    "id": "motorola-moto-g54",
+    "brand": "Motorola",
+    "name": "Moto G54",
+    "case": { "width": 73.8, "height": 161.6, "cornerRadius": 9 },
+    "cutouts": [{ "shape": "roundRect", "x": 5, "y": 5, "width": 22, "height": 30, "radius": 6 }],
+    "bleed": 2,
+    "verified": false
+  }
+]
