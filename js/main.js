@@ -1,4 +1,7 @@
 // Entry point of the studio: builds the shared context, wires the page shell and mounts the panels.
+import * as state from './state.js';
+import { CUSTOM_MODEL_ID, loadCatalog, resolveModel } from './catalog.js';
+import { mountStage } from './stage.js';
 import { mount as mountModel } from './panels/model.js';
 import { mount as mountImages } from './panels/images.js';
 import { mount as mountExport } from './panels/export.js';
@@ -269,11 +272,27 @@ function createFiles() {
   return files;
 }
 
-export function boot() {
+// Project fields changed at boot: without the catalog only the custom model is available.
+export function bootProject(catalogOk) {
+  return catalogOk ? {} : { modelId: CUSTOM_MODEL_ID };
+}
+
+// Keeps the step tabs and `ui.tab` of the state in step, in both directions.
+function linkTabs(ctx) {
+  ctx.tabs.onChange((tab) => ctx.state.setUi({ tab }));
+  ctx.state.subscribe((next, prev) => {
+    if (next.ui.tab !== prev.ui.tab) ctx.tabs.show(next.ui.tab);
+  });
+  const { tab } = ctx.state.getState().ui;
+  if (byId(`tab-${tab}`).getAttribute('aria-selected') !== 'true') ctx.tabs.show(tab);
+}
+
+export async function boot() {
   const drawer = createDrawer();
   const ctx = {
-    state: null,
+    state,
     catalog: null,
+    model: null,
     images: null,
     stage: null,
     tabs: createTabs(drawer),
@@ -281,10 +300,31 @@ export function boot() {
     confirm: createConfirm(),
     files: createFiles(),
   };
+  ctx.model = () => resolveModel(state.getState().project, ctx.catalog);
 
   byId('model-chip').addEventListener('click', () => ctx.tabs.show('model'));
   byId('btn-empty-add').addEventListener('click', () => ctx.files.pick());
 
+  try {
+    ctx.catalog = await loadCatalog();
+  } catch {
+    ctx.catalog = null;
+  }
+  const patch = bootProject(ctx.catalog !== null);
+  if (Object.keys(patch).length > 0) {
+    const current = state.getState();
+    state.loadProject({
+      project: { ...current.project, ...patch },
+      exportOptions: current.exportOptions,
+      orderId: current.orderId,
+    });
+  }
+  if (ctx.catalog === null) {
+    ctx.notices.show({ kind: 'error', strong: 'Não foi possível carregar os modelos.', text: 'Use o modelo personalizado.' });
+  }
+
+  linkTabs(ctx);
+  mountStage(ctx);
   mountModel(byId('panel-model'), ctx);
   mountImages(byId('panel-images'), ctx);
   mountExport(byId('panel-export'), ctx);
