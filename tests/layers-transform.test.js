@@ -119,6 +119,22 @@ test('snapRotation rounds to the step', () => {
   assert.equal(snapRotation(-175), 180);
 });
 
+test('non-finite input returns the same project', () => {
+  const p = project();
+  for (const bad of [NaN, Infinity, -Infinity]) {
+    assert.equal(moveLayer(p, 'a', bad, 0, bounds), p);
+    assert.equal(moveLayer(p, 'a', 0, bad, bounds), p);
+    assert.equal(moveLayerBy(p, 'a', bad, 0, bounds), p);
+    assert.equal(moveLayerBy(p, 'a', 0, bad, bounds), p);
+    assert.equal(setLayerWidth(p, 'a', bad), p);
+    assert.equal(scaleLayer(p, 'a', bad), p);
+    assert.equal(setRotation(p, 'a', bad), p);
+    assert.equal(rotateLayerBy(p, 'a', bad), p);
+  }
+  assert.equal(setLayerWidth(p, 'a', undefined), p);
+  assert.equal(setRotation(p, 'a', '45'), p);
+});
+
 test('unknown id returns the same project', () => {
   const p = project();
   assert.equal(moveLayer(p, 'x', 1, 1, bounds), p);

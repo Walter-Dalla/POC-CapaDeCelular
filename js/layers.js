@@ -37,6 +37,12 @@ function coverWidth(layer, model, bleedMm) {
   return clampWidth(Math.max(width, height / aspectOf(layer)));
 }
 
+// Whether every value is a finite number; NaN or ±Infinity from an input
+// would otherwise end up in the state.
+function allFinite(...values) {
+  return values.every(Number.isFinite);
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -150,11 +156,13 @@ export function layerBounds(model, bleedMm) {
 
 // Moves the layer centre to (cx, cy), clamped into bounds.
 export function moveLayer(project, id, cx, cy, bounds) {
+  if (!allFinite(cx, cy)) return project;
   return updateLayer(project, id, (layer) => ({ ...layer, ...clampCentre(cx, cy, bounds) }));
 }
 
 // Moves the layer centre by (dx, dy), clamped into bounds.
 export function moveLayerBy(project, id, dx, dy, bounds) {
+  if (!allFinite(dx, dy)) return project;
   return updateLayer(project, id, (layer) => ({
     ...layer,
     ...clampCentre(layer.cx + dx, layer.cy + dy, bounds),
@@ -167,11 +175,13 @@ function clampWidth(width) {
 
 // Sets the width of the visible part, clamped to 5–2000 mm; the centre stays.
 export function setLayerWidth(project, id, width) {
+  if (!allFinite(width)) return project;
   return updateLayer(project, id, (layer) => ({ ...layer, width: clampWidth(width) }));
 }
 
 // Multiplies the width by factor, clamped to 5–2000 mm; the centre stays.
 export function scaleLayer(project, id, factor) {
+  if (!allFinite(factor)) return project;
   return updateLayer(project, id, (layer) => ({ ...layer, width: clampWidth(layer.width * factor) }));
 }
 
@@ -182,10 +192,12 @@ export function normalizeRotation(degrees) {
 }
 
 export function setRotation(project, id, degrees) {
+  if (!allFinite(degrees)) return project;
   return updateLayer(project, id, (layer) => ({ ...layer, rotation: normalizeRotation(degrees) }));
 }
 
 export function rotateLayerBy(project, id, degrees) {
+  if (!allFinite(degrees)) return project;
   return updateLayer(project, id, (layer) => ({
     ...layer,
     rotation: normalizeRotation(layer.rotation + degrees),
