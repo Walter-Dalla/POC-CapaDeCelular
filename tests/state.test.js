@@ -158,6 +158,55 @@ test('selection kept when its layer still exists after undo', () => {
   assert.equal(store.getState().project.layers[0].cx, 0);
 });
 
+const DRAFT = { x: 0.1, y: 0.1, width: 0.5, height: 0.5 };
+
+// Store with layer l1 committed, then moved and committed again, in crop mode
+// on l1 with a draft.
+function cropStore() {
+  const store = createStore();
+  addLayer(store, makeLayer('l1', 'img1'));
+  store.commit(null, 1000);
+  moveLayer(store, 'l1', 7);
+  store.commit(null, 2000);
+  store.setUi({ selectedLayerId: 'l1', cropLayerId: 'l1', cropDraft: DRAFT });
+  return store;
+}
+
+function assertDraftDropped(store) {
+  const ui = store.getState().ui;
+  assert.equal(ui.selectedLayerId, 'l1');
+  assert.equal(ui.cropLayerId, 'l1');
+  assert.equal(ui.cropDraft, null);
+}
+
+test('undo drops the crop draft even when its layer still exists', () => {
+  const store = cropStore();
+  store.undo();
+  assertDraftDropped(store);
+});
+
+test('redo drops the crop draft even when its layer still exists', () => {
+  const store = cropStore();
+  store.undo();
+  store.setUi({ cropDraft: DRAFT });
+  store.redo();
+  assertDraftDropped(store);
+});
+
+test('loadProject drops the crop draft even when its layer still exists', () => {
+  const store = cropStore();
+  store.loadProject({ project: { layers: [makeLayer('l1', 'img1')] } });
+  assertDraftDropped(store);
+});
+
+test('resetProject drops the crop draft', () => {
+  const store = cropStore();
+  store.resetProject();
+  const ui = store.getState().ui;
+  assert.equal(ui.cropLayerId, null);
+  assert.equal(ui.cropDraft, null);
+});
+
 test('referencedImageIds includes an image present only in a past step', () => {
   const store = createStore();
   addLayer(store, makeLayer('l1', 'img1'));

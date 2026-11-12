@@ -57,12 +57,13 @@ function shallowEqual(a, b) {
   return keys.every((k) => Object.is(a[k], b[k]));
 }
 
-// Clears the selection and the crop when the layer they name is gone.
+// Clears the selection and the crop layer when the layer they name is gone,
+// and always drops the crop draft, which belonged to the replaced project.
 function cleanUi(ui, project) {
   const ids = new Set(project.layers.map((layer) => layer.id));
   const selectedLayerId = ids.has(ui.selectedLayerId) ? ui.selectedLayerId : null;
   const cropLayerId = ids.has(ui.cropLayerId) ? ui.cropLayerId : null;
-  const cropDraft = cropLayerId === null ? null : ui.cropDraft;
+  const cropDraft = null;
   if (
     selectedLayerId === ui.selectedLayerId &&
     cropLayerId === ui.cropLayerId &&
