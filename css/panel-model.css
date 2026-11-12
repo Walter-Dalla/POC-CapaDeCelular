@@ -1,5 +1,36 @@
 /* Modelo panel. Every colour, radius and spacing comes from css/tokens.css. */
 
+/* The tab panel scrolls; the footer with the next-step button stays at its bottom edge */
+#panel-model {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-model {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-20);
+}
+
+.panel__footer {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  padding: var(--space-16) var(--space-20);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.panel__next {
+  width: 100%;
+}
+
+.panel-model__failure {
+  margin: 0;
+}
+
 .panel-model__search {
   display: flex;
   flex-direction: column;

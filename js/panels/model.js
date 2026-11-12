@@ -25,6 +25,11 @@ export function modelListView(catalog, { query = '', brand = null, selectedId = 
   };
 }
 
+// Texts of the header chip for the project's resolved model.
+export function chipView(model) {
+  return { name: model.name, size: formatSize(model.case.width, model.case.height) };
+}
+
 // Size in px of the thumbnail: the case outline 54px high, the width in proportion.
 export function thumbBox(model) {
   const width = Math.round((model.case.width / model.case.height) * THUMB_HEIGHT);
@@ -318,17 +323,56 @@ function buildCustomForm(content, ctx) {
   return fill;
 }
 
+function arrowIcon() {
+  const svg = svgElement('svg', {
+    'aria-hidden': 'true',
+    width: 20,
+    height: 20,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    'stroke-width': 2.5,
+    'stroke-linecap': 'round',
+    'stroke-linejoin': 'round',
+  });
+  svg.append(svgElement('path', { d: 'M5 12h14M13 6l6 6-6 6' }));
+  return svg;
+}
+
+// Keeps the header chip's name and size in step with the resolved model.
+function syncChip(ctx) {
+  const name = document.getElementById('model-chip-name');
+  const size = document.getElementById('model-chip-size');
+  const view = chipView(ctx.model());
+  if (name && name.textContent !== view.name) name.textContent = view.name;
+  if (size && size.textContent !== view.size) size.textContent = view.size;
+}
+
 export function mount(container, ctx) {
   // Without a store there is no project whose model could be chosen.
   if (!ctx.state) return;
   const content = element('div', 'panel-model');
-  container.append(content);
+  const footer = element('div', 'panel__footer');
+  container.append(content, footer);
 
-  const renderPicker = ctx.catalog ? buildPicker(content, ctx) : null;
+  let renderPicker = null;
+  if (ctx.catalog) {
+    renderPicker = buildPicker(content, ctx);
+  } else {
+    content.append(element('p', 'support panel-model__failure', 'Não foi possível carregar os modelos.'));
+  }
   const fillCustom = buildCustomForm(content, ctx);
 
+  const next = element('button', 'btn btn--primary panel__next', 'Continuar para imagens');
+  next.type = 'button';
+  next.append(arrowIcon());
+  next.addEventListener('click', () => ctx.tabs.show('images'));
+  footer.append(next);
+
+  syncChip(ctx);
   ctx.state.subscribe((state, prev) => {
     if (renderPicker && state.project.modelId !== prev.project.modelId) renderPicker();
     if (state.project.customModel !== prev.project.customModel) fillCustom(state.project.customModel);
+    syncChip(ctx);
   });
 }
