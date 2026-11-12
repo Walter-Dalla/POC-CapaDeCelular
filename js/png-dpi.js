@@ -53,6 +53,15 @@ function pngChunks(bytes) {
   return chunks;
 }
 
+// Rounds the DPI and checks it fits the 1–65535 range shared by both formats.
+function checkDensity(dpi) {
+  const value = Math.round(dpi);
+  if (!Number.isFinite(value) || value < 1 || value > 0xffff) {
+    throw new RangeError('DPI fora do intervalo de 1 a 65535');
+  }
+  return value;
+}
+
 function physChunk(dpi) {
   const perMetre = Math.round(dpi / INCH_IN_METRES);
   const chunk = new Uint8Array(12 + 9);
@@ -66,9 +75,10 @@ function physChunk(dpi) {
 }
 
 export function setPngDpi(bytes, dpi) {
+  const density = checkDensity(dpi);
   const chunks = pngChunks(bytes);
   const kept = chunks.filter((chunk) => chunk.type !== 'pHYs');
-  const phys = physChunk(dpi);
+  const phys = physChunk(density);
   const parts = [bytes.subarray(0, PNG_SIGNATURE.length)];
   kept.forEach((chunk, index) => {
     parts.push(bytes.subarray(chunk.start, chunk.end));
@@ -85,14 +95,6 @@ export function setPngDpi(bytes, dpi) {
 
 const JFIF_ID = [0x4a, 0x46, 0x49, 0x46, 0x00];
 const CM_PER_INCH = 2.54;
-
-function checkDensity(dpi) {
-  const value = Math.round(dpi);
-  if (!Number.isFinite(value) || value < 1 || value > 0xffff) {
-    throw new RangeError('DPI fora do intervalo de 1 a 65535');
-  }
-  return value;
-}
 
 // Offset of the JFIF APP0 segment right after SOI, or -1 when the first segment is another one.
 function jfifOffset(bytes) {

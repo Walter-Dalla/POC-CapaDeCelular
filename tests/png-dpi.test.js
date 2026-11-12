@@ -75,6 +75,14 @@ test('readPngDpi reads the density, null without pHYs or with unit 0', () => {
   assert.equal(readPngDpi(unitZero), null);
 });
 
+test('setPngDpi throws RangeError for a DPI outside 1 to 65535', () => {
+  for (const dpi of [0, -300, NaN, Infinity, 65536, 1e9]) {
+    assert.throws(() => setPngDpi(png, dpi), RangeError, String(dpi));
+  }
+  assert.equal(readPngDpi(setPngDpi(png, 65535)), 65535);
+  assert.equal(readPngDpi(setPngDpi(png, 1)), 1);
+});
+
 test('setPngDpi throws on a truncated or non-PNG input', () => {
   const expected = { message: 'PNG inválido' };
   assert.throws(() => setPngDpi(png.slice(0, 40), 300), expected);
