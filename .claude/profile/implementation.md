@@ -2,8 +2,8 @@
 
 ## Commands
 build: — [repo tree: sem build]
-suite: — [repo tree: sem testes]
-typecheck: `node --check js/p5.js` [owner]
+suite: `npm test` [owner]
+typecheck: `npm run check` [owner]
 service: `python3 -m http.server <port>` [owner]
 health: `curl -sf -o /dev/null http://localhost:<port>/` [owner]
 
