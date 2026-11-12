@@ -232,6 +232,7 @@
   padding: 0;
   list-style: none;
   text-align: left;
+  font-size: 15px;
 }
 
 .stage-empty__steps li {
