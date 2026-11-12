@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createTabs, drawerOpen } from '../js/main.js';
-import { contrastStrokes, cutLineStrokes } from '../js/stage.js';
+import { contrastStrokes, cutLineStrokes, PREVIEW_MARKS_MIN_PX, previewMarks } from '../js/stage.js';
 
 // Last value of a property declared for an exact selector of a stylesheet
 // (comments dropped; a selector list counts for each of its selectors).
@@ -116,4 +116,16 @@ test('layout.css: the placed empty state never rises above its top padding', () 
   assert.match(mobile, /\.stage-empty--placed \{[^}]*gap: var\(--space-12\);/);
   // The desktop rule keeps the 16px rows of the empty state.
   assert.match(css, /\n\.stage-empty \{[^}]*gap: var\(--space-16\);/);
+});
+
+// Stage area heights seen in the browser: 1440x900 about 827 px, 390x844 with
+// the drawer collapsed about 690 px, with the drawer open about 109 px.
+test('previewMarks: caption and rulers only when the stage area is 200 px or taller', () => {
+  assert.equal(PREVIEW_MARKS_MIN_PX, 200);
+  assert.equal(previewMarks(827), true);
+  assert.equal(previewMarks(690), true);
+  assert.equal(previewMarks(200), true);
+  assert.equal(previewMarks(199), false);
+  assert.equal(previewMarks(109), false);
+  assert.equal(previewMarks(0), false);
 });
