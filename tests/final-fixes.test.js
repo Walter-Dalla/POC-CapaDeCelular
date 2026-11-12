@@ -92,3 +92,17 @@ test('app.css: a disabled ghost button keeps a transparent background and a dimm
   // The other buttons keep the filled disabled look.
   assert.equal(cssValue('app.css', '.btn:disabled', 'background'), 'var(--color-border)');
 });
+
+// 7 buttons of 44px, the spacer and 7 gaps of 4px take 336px; the row of the
+// 400px panel is 400 - 1 (panel border) - 2 × 20 (panel padding) - 2 × 2
+// (selected card border) - 2 × 8 (card padding) = 339px.
+test('panel-images.css: from 900px the layer actions keep one row with a 4px gap', () => {
+  const css = readFileSync(new URL('../css/panel-images.css', import.meta.url), 'utf8');
+  const media = /@media \(min-width: 900px\) \{([\s\S]*?)\n\}/.exec(css);
+  assert.ok(media, 'desktop media block');
+  assert.match(media[1], /\.layer-card__actions \{[^}]*flex-wrap: nowrap;[^}]*gap: var\(--space-4\);/);
+  assert.match(media[1], /\.layer-card \{[^}]*padding-inline: var\(--space-8\);/);
+  assert.ok(7 * 44 + 7 * 4 <= 400 - 1 - 2 * 20 - 2 * 2 - 2 * 8);
+  // The 390px compact card keeps its own 4px gap.
+  assert.match(css, /\.layer-card--compact \.layer-card__actions \{[^}]*gap: var\(--space-4\);/);
+});
