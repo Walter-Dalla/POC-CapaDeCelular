@@ -3,8 +3,16 @@
 // Lengths of the state are in millimetres from the centre of the cover; they
 // become screen pixels only here, through the scale of the stage layout.
 
-import { traceCase, traceCutouts } from './geometry.js';
+import {
+  layerRect,
+  rectCorners,
+  selectionHandles,
+  traceCase,
+  traceCutouts,
+  traceRoundRect,
+} from './geometry.js';
 import { plural } from './format.js';
+import { drawLayers } from './render.js';
 
 // Free space around the case on the stage, beyond the bleed, in mm.
 const STAGE_ROOM_MM = 6;
@@ -135,51 +143,218 @@ function readTokens() {
   return tokens;
 }
 
+// Ordered steps of the edit view for a state: the drawing code follows it.
+export function editDrawPlan(state, model) {
+  const { project, ui } = state;
+  const plan = ['shadow', 'background'];
+  if (project.layers.length === 0) return [...plan, ...(model.cutouts?.length ? ['cutouts'] : []), 'bleed'];
+  plan.push('layers-faded', 'layers-clipped');
+  if (model.cutouts?.length) plan.push('cutouts');
+  plan.push('contour', 'bleed');
+  if (ui.showSafeMargin) plan.push('safe-margin');
+  if (ui.guides?.v) plan.push('guide-v');
+  if (ui.guides?.h) plan.push('guide-h');
+  const selected = project.layers.some((layer) => layer.id === ui.selectedLayerId);
+  if (selected && ui.cropLayerId === null) plan.push('selection');
+  return plan;
+}
+
 const BLEED_DASH = [6, 4];
+const WARN_DASH = [6, 4];
+const OUTSIDE_ALPHA = 0.28;
+// Anything drawn outside the case is within this many px of the origin.
+const FAR_PX = 100000;
+const CORNER_HANDLE_PX = 14;
+const CORNER_HANDLE_BORDER_PX = 2;
+const CORNER_HANDLE_RADIUS_PX = 3;
+const ROTATE_HANDLE_RADIUS_PX = 9;
+const ROTATE_HANDLE_BORDER_PX = 3;
+
+function radians(degrees) {
+  return (degrees * Math.PI) / 180;
+}
+
+function withShadow(g, shadow) {
+  if (!shadow) return;
+  g.shadowOffsetX = shadow.x;
+  g.shadowOffsetY = shadow.y;
+  g.shadowBlur = shadow.blur;
+  g.shadowColor = shadow.color;
+}
+
+// Line drawn twice so it reads over any cover: a dark under-stroke, then the
+// yellow dashes.
+function strokeWarn(g, tokens, trace) {
+  g.save();
+  g.beginPath();
+  trace();
+  g.lineWidth = 3;
+  g.strokeStyle = tokens['--color-bg'];
+  g.stroke();
+  g.lineWidth = 1.5;
+  g.setLineDash(WARN_DASH);
+  g.strokeStyle = tokens['--color-warn'];
+  g.stroke();
+  g.restore();
+}
+
+// Rotated rectangle of a rect in mm, as a closed path in px.
+function traceRect(g, rect, scale) {
+  const corners = rectCorners(rect);
+  corners.forEach((point, index) => {
+    if (index === 0) g.moveTo(point.x * scale, point.y * scale);
+    else g.lineTo(point.x * scale, point.y * scale);
+  });
+  g.closePath();
+}
+
+// A rect outlined in the selection colour with its four square corner handles.
+function drawFrame(g, rect, scale, tokens) {
+  const select = tokens['--color-select'];
+  g.save();
+  g.beginPath();
+  traceRect(g, rect, scale);
+  g.lineWidth = 2;
+  g.strokeStyle = select;
+  g.stroke();
+  const half = CORNER_HANDLE_PX / 2;
+  const inner = CORNER_HANDLE_PX - 2 * CORNER_HANDLE_BORDER_PX;
+  for (const corner of rectCorners(rect)) {
+    g.save();
+    g.translate(corner.x * scale, corner.y * scale);
+    g.rotate(radians(rect.rotation));
+    g.beginPath();
+    traceRoundRect(g, -half, -half, CORNER_HANDLE_PX, CORNER_HANDLE_PX, CORNER_HANDLE_RADIUS_PX);
+    g.fillStyle = select;
+    g.fill();
+    g.beginPath();
+    traceRoundRect(g, -inner / 2, -inner / 2, inner, inner, CORNER_HANDLE_RADIUS_PX - CORNER_HANDLE_BORDER_PX);
+    g.fillStyle = tokens['--color-text'];
+    g.fill();
+    g.restore();
+  }
+  g.restore();
+}
+
+// Selection of a layer: its frame, the stem and the round rotate handle.
+function drawSelection(g, layer, scale, tokens) {
+  const rect = layerRect(layer);
+  drawFrame(g, rect, scale, tokens);
+  const handles = selectionHandles(rect, scale);
+  const top = { x: (handles.nw.x + handles.ne.x) / 2, y: (handles.nw.y + handles.ne.y) / 2 };
+  g.save();
+  g.beginPath();
+  g.moveTo(top.x * scale, top.y * scale);
+  g.lineTo(handles.rotate.x * scale, handles.rotate.y * scale);
+  g.lineWidth = 2;
+  g.strokeStyle = tokens['--color-select'];
+  g.stroke();
+  g.beginPath();
+  g.arc(handles.rotate.x * scale, handles.rotate.y * scale, ROTATE_HANDLE_RADIUS_PX, 0, 2 * Math.PI);
+  g.fillStyle = tokens['--color-text'];
+  g.fill();
+  g.beginPath();
+  g.arc(handles.rotate.x * scale, handles.rotate.y * scale, ROTATE_HANDLE_RADIUS_PX - ROTATE_HANDLE_BORDER_PX, 0, 2 * Math.PI);
+  g.fillStyle = tokens['--color-select'];
+  g.fill();
+  g.restore();
+}
 
 // Edit view of the cover, drawn with the origin at the centre of the case
-// and lengths in mm × scale.
-function drawEdit(g, { model, project, scale, tokens }) {
-  const shadow = tokens.shadow;
-  g.save();
-  if (shadow) {
-    g.shadowOffsetX = shadow.x;
-    g.shadowOffsetY = shadow.y;
-    g.shadowBlur = shadow.blur;
-    g.shadowColor = shadow.color;
-  }
-  g.fillStyle = project.background;
-  g.beginPath();
-  traceCase(g, model, 0, scale);
-  g.fill();
-  g.restore();
-
-  g.save();
-  g.beginPath();
-  traceCase(g, model, 0, scale);
-  g.clip();
-  g.fillStyle = project.background;
-  g.fill();
-  g.restore();
-
-  g.save();
-  g.beginPath();
-  traceCutouts(g, model, scale);
-  g.fillStyle = tokens['--color-bg'];
-  g.fill();
-  g.lineWidth = 2;
-  g.strokeStyle = tokens['--color-text'];
-  g.stroke();
-  g.restore();
-
-  g.save();
-  g.beginPath();
-  traceCase(g, model, model.bleed, scale);
-  g.lineWidth = 1.5;
-  g.setLineDash(BLEED_DASH);
-  g.strokeStyle = tokens['--color-guide'];
-  g.stroke();
-  g.restore();
+// and lengths in mm × scale, step by step as editDrawPlan lists them.
+function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
+  const { project, ui } = state;
+  const layers = project.layers;
+  const steps = {
+    shadow() {
+      g.save();
+      withShadow(g, tokens.shadow);
+      g.fillStyle = project.background;
+      g.beginPath();
+      traceCase(g, model, 0, scale);
+      g.fill();
+      g.restore();
+    },
+    background() {
+      g.save();
+      g.beginPath();
+      traceCase(g, model, 0, scale);
+      g.clip();
+      g.fillStyle = project.background;
+      g.fill();
+      g.restore();
+    },
+    'layers-faded'() {
+      g.save();
+      g.beginPath();
+      g.rect(-FAR_PX, -FAR_PX, 2 * FAR_PX, 2 * FAR_PX);
+      traceCase(g, model, 0, scale);
+      g.clip('evenodd');
+      g.globalAlpha = OUTSIDE_ALPHA;
+      drawLayers(g, layers, getBitmap, scale);
+      g.restore();
+    },
+    'layers-clipped'() {
+      g.save();
+      g.beginPath();
+      traceCase(g, model, 0, scale);
+      g.clip();
+      drawLayers(g, layers, getBitmap, scale);
+      g.restore();
+    },
+    cutouts() {
+      g.save();
+      g.beginPath();
+      traceCutouts(g, model, scale);
+      g.fillStyle = tokens['--color-bg'];
+      g.fill();
+      g.lineWidth = 2;
+      g.strokeStyle = tokens['--color-text'];
+      g.stroke();
+      g.restore();
+    },
+    contour() {
+      g.save();
+      g.beginPath();
+      traceCase(g, model, 0, scale);
+      g.lineWidth = 2;
+      g.strokeStyle = tokens['--color-text'];
+      g.stroke();
+      g.restore();
+    },
+    bleed() {
+      g.save();
+      g.beginPath();
+      traceCase(g, model, model.bleed, scale);
+      g.lineWidth = 1.5;
+      g.setLineDash(BLEED_DASH);
+      g.strokeStyle = tokens['--color-guide'];
+      g.stroke();
+      g.restore();
+    },
+    'safe-margin'() {
+      strokeWarn(g, tokens, () => traceCase(g, model, -safeMarginOf(model), scale));
+    },
+    'guide-v'() {
+      const half = (model.case.height / 2) * scale;
+      strokeWarn(g, tokens, () => {
+        g.moveTo(0, -half);
+        g.lineTo(0, half);
+      });
+    },
+    'guide-h'() {
+      const half = (model.case.width / 2) * scale;
+      strokeWarn(g, tokens, () => {
+        g.moveTo(-half, 0);
+        g.lineTo(half, 0);
+      });
+    },
+    selection() {
+      const layer = layers.find((item) => item.id === ui.selectedLayerId);
+      drawSelection(g, layer, scale, tokens);
+    },
+  };
+  for (const step of editDrawPlan(state, model)) steps[step]();
 }
 
 function renderLegend(list, entries) {
@@ -213,6 +388,8 @@ export function mountStage(ctx) {
   let layout = { scale: 1, originX: 0, originY: 0 };
   let legendKey = null;
   let frame = 0;
+  // Without an image registry the layers have no bitmap and are not drawn.
+  const getBitmap = (id) => ctx.images?.getBitmap(id) ?? null;
 
   function updateChrome(state, view, model) {
     const entries = legendEntries(view, model, state.ui);
@@ -256,7 +433,7 @@ export function mountStage(ctx) {
     g.setTransform(1, 0, 0, 1, 0, 0);
     g.clearRect(0, 0, canvas.width, canvas.height);
     g.setTransform(ratio, 0, 0, ratio, layout.originX * ratio, layout.originY * ratio);
-    drawEdit(g, { model, project: state.project, scale: layout.scale, tokens });
+    drawEdit(g, { state, model, scale: layout.scale, tokens, getBitmap });
   }
 
   function schedule() {
