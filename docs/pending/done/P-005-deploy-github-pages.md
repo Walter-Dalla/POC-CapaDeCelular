@@ -1,6 +1,6 @@
 ---
 id: P-005
-status: open
+status: done
 created: 2026-11-11
 related: [P-001, P-002, P-003, P-004, P-006]
 ---
