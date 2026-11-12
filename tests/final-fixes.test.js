@@ -5,8 +5,8 @@ import { createTabs, drawerOpen } from '../js/main.js';
 import {
   contrastStrokes,
   cutLineStrokes,
-  EMPTY_TEXT_MIN_PX,
-  emptyTextFits,
+  emptyParts,
+  emptyRoom,
   PREVIEW_MARKS_MIN_PX,
   previewMarks,
 } from '../js/stage.js';
@@ -140,15 +140,39 @@ test('layout.css: the placed empty state never rises above its top padding', () 
   assert.match(css, /\n\.stage-empty \{[^}]*gap: var\(--space-16\);/);
 });
 
-// Case heights seen in the browser: 1440x900 about 609 px, 390x844 with the
-// drawer collapsed about 514 px, with the drawer open 0 px.
-test('emptyTextFits: the empty-state text shows only over a case 400 px or taller', () => {
-  assert.equal(EMPTY_TEXT_MIN_PX, 400);
-  assert.equal(emptyTextFits({ height: 609 }), true);
-  assert.equal(emptyTextFits({ height: 514 }), true);
-  assert.equal(emptyTextFits({ height: 400 }), true);
-  assert.equal(emptyTextFits({ height: 399 }), false);
-  assert.equal(emptyTextFits({ height: 0 }), false);
+// Part heights measured at 390 px wide (12 px gap): all five take
+// 17 + 64 + 142 + 48 + 36 + 4 × 12 = 355 px.
+const MOBILE_PARTS = { kicker: 17, title: 64, steps: 142, add: 48, hint: 36 };
+
+test('emptyRoom: below the cutout padding (or 40 px) down to 12 px above the bottom', () => {
+  assert.equal(emptyRoom({ height: 514, paddingTop: 144 }), 358);
+  assert.equal(emptyRoom({ height: 300, paddingTop: null }), 248);
+  assert.equal(emptyRoom({ height: 0, paddingTop: 12 }), 0);
+});
+
+test('emptyParts: every part when they all fit', () => {
+  assert.deepEqual(emptyParts(358, MOBILE_PARTS, 12), ['kicker', 'title', 'steps', 'add', 'hint']);
+  assert.deepEqual(emptyParts(355, MOBILE_PARTS, 12), ['kicker', 'title', 'steps', 'add', 'hint']);
+});
+
+test('emptyParts: drops the last line, then the steps, then the title, never the button', () => {
+  // 355 - 36 - 12 = 307
+  assert.deepEqual(emptyParts(354, MOBILE_PARTS, 12), ['kicker', 'title', 'steps', 'add']);
+  assert.deepEqual(emptyParts(307, MOBILE_PARTS, 12), ['kicker', 'title', 'steps', 'add']);
+  // 307 - 142 - 12 = 153
+  assert.deepEqual(emptyParts(306, MOBILE_PARTS, 12), ['kicker', 'title', 'add']);
+  assert.deepEqual(emptyParts(153, MOBILE_PARTS, 12), ['kicker', 'title', 'add']);
+  // 153 - 64 - 12 = 77
+  assert.deepEqual(emptyParts(152, MOBILE_PARTS, 12), ['kicker', 'add']);
+  assert.deepEqual(emptyParts(77, MOBILE_PARTS, 12), ['kicker', 'add']);
+  // 77 - 17 - 12 = 48: the button alone
+  assert.deepEqual(emptyParts(76, MOBILE_PARTS, 12), ['add']);
+  assert.deepEqual(emptyParts(48, MOBILE_PARTS, 12), ['add']);
+});
+
+test('emptyParts: nothing when not even the button fits (open drawer, case about 0 px)', () => {
+  assert.deepEqual(emptyParts(47, MOBILE_PARTS, 12), []);
+  assert.deepEqual(emptyParts(0, MOBILE_PARTS, 12), []);
 });
 
 // Stage area heights seen in the browser: 1440x900 about 827 px, 390x844 with
