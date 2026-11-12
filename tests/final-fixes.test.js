@@ -1,7 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createTabs, drawerOpen } from '../js/main.js';
 import { contrastStrokes, cutLineStrokes } from '../js/stage.js';
+
+// Last value of a property declared for an exact selector of a stylesheet
+// (comments dropped; a selector list counts for each of its selectors).
+function cssValue(file, selector, property) {
+  const css = readFileSync(new URL(`../css/${file}`, import.meta.url), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  let value;
+  for (const [, selectors, body] of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const list = selectors.split(',').map((part) => part.trim().replace(/\s+/g, ' '));
+    if (!list.includes(selector)) continue;
+    for (const [, name, declared] of body.matchAll(/([a-z-]+)\s*:\s*([^;]+);/g)) {
+      if (name === property) value = declared.trim().replace(/\s+/g, ' ');
+    }
+  }
+  return value;
+}
 
 // Page with the three tab buttons and panels, `selected` being the tab the
 // markup marks aria-selected; elements keep only what createTabs touches.
@@ -66,4 +82,13 @@ test('cutLineStrokes: white dashes over a solid dark under-stroke, as the safe m
     { lineWidth: 3, dash: [], colour: '--color-bg' },
     { lineWidth: 1.5, dash: [6, 4], colour: '--color-warn' },
   ]);
+});
+
+test('app.css: a disabled ghost button keeps a transparent background and a dimmed colour', () => {
+  for (const selector of ['.btn--ghost:disabled', '.btn--ghost[aria-disabled="true"]']) {
+    assert.equal(cssValue('app.css', selector, 'background'), 'transparent', selector);
+    assert.equal(cssValue('app.css', selector, 'color'), 'var(--color-border-strong)', selector);
+  }
+  // The other buttons keep the filled disabled look.
+  assert.equal(cssValue('app.css', '.btn:disabled', 'background'), 'var(--color-border)');
 });

@@ -129,6 +129,13 @@ textarea:focus-visible,
   pointer-events: none;
 }
 
+/* A disabled ghost button stays flat, so it never looks pressed: only its colour dims */
+.btn--ghost:disabled,
+.btn--ghost[aria-disabled="true"] {
+  background: transparent;
+  color: var(--color-border-strong);
+}
+
 /* Fields */
 .field {
   display: flex;
