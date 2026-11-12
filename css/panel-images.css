@@ -173,6 +173,11 @@
   cursor: default;
 }
 
+/* The seven buttons fit one row on a 390px-wide screen */
+.layer-card--compact .layer-card__actions {
+  gap: var(--space-4);
+}
+
 .layer-card--compact .layer-card__thumb {
   width: 44px;
   height: 44px;
