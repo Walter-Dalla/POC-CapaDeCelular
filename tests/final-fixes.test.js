@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTabs, drawerOpen } from '../js/main.js';
+import { contrastStrokes, cutLineStrokes } from '../js/stage.js';
 
 // Page with the three tab buttons and panels, `selected` being the tab the
 // markup marks aria-selected; elements keep only what createTabs touches.
@@ -54,4 +55,15 @@ test('createTabs sets the drawer once from the tab selected in the page', () => 
     withPage(selected, () => createTabs({ set: (open) => calls.push(open) }));
     assert.deepEqual(calls, expected, selected);
   }
+});
+
+test('cutLineStrokes: white dashes over a solid dark under-stroke, as the safe margin', () => {
+  assert.deepEqual(cutLineStrokes(), [
+    { lineWidth: 3, dash: [], colour: '--color-bg' },
+    { lineWidth: 1.5, dash: [6, 4], colour: '--color-text' },
+  ]);
+  assert.deepEqual(contrastStrokes('--color-warn', [6, 4]), [
+    { lineWidth: 3, dash: [], colour: '--color-bg' },
+    { lineWidth: 1.5, dash: [6, 4], colour: '--color-warn' },
+  ]);
 });

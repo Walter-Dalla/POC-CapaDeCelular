@@ -253,20 +253,32 @@ function withShadow(g, shadow) {
   g.shadowColor = shadow.color;
 }
 
-// Line drawn twice so it reads over any cover: a dark under-stroke, then the
-// yellow dashes.
-function strokeWarn(g, tokens, trace) {
+// Passes of a line that reads over any cover: a solid dark under-stroke, then
+// the dashes in the colour token. Widths in px; colours are token names.
+export function contrastStrokes(colour, dash) {
+  return [
+    { lineWidth: 3, dash: [], colour: '--color-bg' },
+    { lineWidth: 1.5, dash, colour },
+  ];
+}
+
+// Strokes the path that trace() builds with each pass of contrastStrokes.
+function strokeContrast(g, tokens, passes, trace) {
   g.save();
   g.beginPath();
   trace();
-  g.lineWidth = 3;
-  g.strokeStyle = tokens['--color-bg'];
-  g.stroke();
-  g.lineWidth = 1.5;
-  g.setLineDash(WARN_DASH);
-  g.strokeStyle = tokens['--color-warn'];
-  g.stroke();
+  for (const pass of passes) {
+    g.lineWidth = pass.lineWidth;
+    g.setLineDash(pass.dash);
+    g.strokeStyle = tokens[pass.colour];
+    g.stroke();
+  }
   g.restore();
+}
+
+// Safe margin and guides: yellow dashes over the dark under-stroke.
+function strokeWarn(g, tokens, trace) {
+  strokeContrast(g, tokens, contrastStrokes('--color-warn', WARN_DASH), trace);
 }
 
 // Rotated rectangle of a rect in mm, as a closed path in px.
@@ -452,6 +464,12 @@ function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
 
 const CHECKER_PX = 8;
 const CUT_DASH = [6, 4];
+
+// Passes of the cut line of the file preview: white dashes over the dark
+// under-stroke, so the line shows over a white background too.
+export function cutLineStrokes() {
+  return contrastStrokes('--color-text', CUT_DASH);
+}
 const RULER_GAP_PX = 8;
 const RULER_FONT_PX = 13;
 
@@ -531,14 +549,7 @@ function drawPreview(g, { state, model, scale, ratio, tokens, getBitmap }) {
   fillChecker(g, left, top, width, height, tokens);
   g.drawImage(file, left, top, width, height);
 
-  g.save();
-  g.beginPath();
-  traceCase(g, model, 0, scale);
-  g.lineWidth = 1.5;
-  g.setLineDash(CUT_DASH);
-  g.strokeStyle = tokens['--color-text'];
-  g.stroke();
-  g.restore();
+  strokeContrast(g, tokens, cutLineStrokes(), () => traceCase(g, model, 0, scale));
 
   const rulers = previewRulers(exportOptions, model);
   const offset = RULER_GAP_PX + RULER_FONT_PX / 2;
