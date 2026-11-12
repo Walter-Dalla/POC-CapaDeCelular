@@ -151,3 +151,59 @@
 .panel-images__other[aria-pressed="true"] {
   border: 3px solid var(--color-accent);
 }
+
+/* Compact view of the collapsed drawer: the selected layer and two buttons */
+.panel-images__compact {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16) var(--space-16);
+}
+
+.panel-images__hint {
+  margin: 0;
+}
+
+.layer-card--compact {
+  gap: var(--space-8);
+  padding: var(--space-8);
+}
+
+.layer-card--compact .layer-card__head {
+  cursor: default;
+}
+
+.layer-card--compact .layer-card__thumb {
+  width: 44px;
+  height: 44px;
+}
+
+.panel-images__compact-buttons {
+  display: flex;
+  gap: var(--space-12);
+}
+
+.panel-images__add,
+.panel-images__export {
+  min-height: 52px;
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.panel-images__add {
+  flex: 1 1 0;
+  border: 1px solid var(--color-text);
+  border-radius: var(--radius-card);
+}
+
+.panel-images__export {
+  flex: 1.4 1 0;
+}
+
+/* From 900px up the panel sits beside the stage and the compact view is not used */
+@media (min-width: 900px) {
+  #panel-images > .panel__compact {
+    display: none;
+  }
+}

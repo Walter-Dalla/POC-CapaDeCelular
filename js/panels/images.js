@@ -109,6 +109,16 @@ export function readoutView(layer) {
   return { rotation: formatDegrees(layer.rotation), width: `${formatMm(layer.width)} mm` };
 }
 
+// Support text of the collapsed drawer when no layer is selected.
+export function compactHint(layerCount) {
+  return layerCount > 0 ? 'Toque em uma imagem na capa para editar.' : 'Adicione uma imagem para começar.';
+}
+
+// Detail line of the selected layer in the collapsed drawer: '222 DPI na capa'.
+export function compactDetail(layer) {
+  return formatDpi(effectiveDpi(layer));
+}
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Paths of each icon, drawn in a 24 × 24 box with the stroke in the current colour.
@@ -123,6 +133,7 @@ const ICON_PATHS = {
   remove: ['M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3'],
   warn: ['M12 3 2 20h20L12 3zM12 10v5M12 17.5v.5'],
   arrow: ['M5 12h14M13 6l6 6-6 6'],
+  plus: ['M12 5v14M5 12h14'],
 };
 
 function icon(name, size = 20, strokeWidth = 2) {
@@ -484,6 +495,54 @@ function wireToolbar(ctx) {
   return render;
 }
 
+const COMPACT_THUMB_SIZE = 44;
+
+// What the collapsed drawer shows (only below 900px); returns `render`, which
+// rebuilds the selected layer's card when what it shows changed.
+function buildCompact(container, ctx) {
+  const compact = element('div', 'panel__compact panel-images__compact');
+  const body = element('div', 'panel-images__compact-body');
+  const buttons = element('div', 'panel-images__compact-buttons');
+  const add = button('btn panel-images__add', 'Imagem');
+  add.prepend(icon('plus'));
+  add.addEventListener('click', () => ctx.files.pick());
+  const exportButton = button('btn btn--primary panel-images__export', 'Exportar');
+  exportButton.append(icon('arrow', 20, 2.5));
+  exportButton.addEventListener('click', () => ctx.tabs.show('export'));
+  buttons.append(add, exportButton);
+  compact.append(body, buttons);
+  container.prepend(compact);
+
+  let signature = null;
+  function render() {
+    const { project, ui } = ctx.state.getState();
+    const layer = ui.selectedLayerId === null ? null : getLayer(project, ui.selectedLayerId);
+    const next = JSON.stringify(
+      layer
+        ? [layer.id, layer.name, compactDetail(layer), layer.imageId, cropOf(layer), Boolean(ctx.images?.getBitmap(layer.imageId))]
+        : compactHint(project.layers.length),
+    );
+    if (next === signature) return;
+    signature = next;
+    const key = focusedKey(body);
+    if (!layer) {
+      body.replaceChildren(element('p', 'support panel-images__hint', compactHint(project.layers.length)));
+      return;
+    }
+    const card = element('div', 'card card--layer-selected layer-card layer-card--compact');
+    const head = element('div', 'layer-card__head');
+    const text = element('span', 'layer-card__text');
+    text.append(element('span', 'layer-card__name', layer.name), element('span', 'layer-card__detail', compactDetail(layer)));
+    head.append(thumbnail(layer, COMPACT_THUMB_SIZE, ctx, 'layer-card__thumb'), text);
+    card.append(head, actionRow(layer.id, ctx));
+    body.replaceChildren(card);
+    refocus(body, key);
+  }
+
+  render();
+  return render;
+}
+
 // Footer with the button to the next step.
 function footer(ctx) {
   const node = element('div', 'panel__footer');
@@ -518,11 +577,13 @@ export function mount(container, ctx) {
   const renderList = buildList(content, ctx);
   const renderBackground = buildBackground(content, ctx);
   const renderToolbar = wireToolbar(ctx);
+  const renderCompact = buildCompact(container, ctx);
 
   ctx.files.handle = (files) => intake(files, ctx);
   ctx.state.subscribe((state, prev) => {
     renderList();
     if (state.project.background !== prev.project.background) renderBackground();
     renderToolbar();
+    renderCompact();
   });
 }
