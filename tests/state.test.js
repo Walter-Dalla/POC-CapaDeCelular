@@ -262,6 +262,48 @@ test('loadProject replaces everything and empties history', () => {
   assert.deepEqual([...store.referencedImageIds()], ['img9']);
 });
 
+test('canRedo is false while there is an uncommitted change', () => {
+  const store = createStore();
+  store.updateProject((p) => ({ ...p, background: '#000000' }));
+  store.commit(null, 1000);
+  store.undo();
+  assert.equal(store.canRedo(), true);
+  store.updateProject((p) => ({ ...p, background: '#FF0000' }));
+  assert.equal(store.canRedo(), false);
+  assert.equal(store.redo(), false);
+  assert.equal(store.getState().project.background, '#FF0000');
+  store.undo();
+  assert.equal(store.getState().project.background, '#FFFFFF');
+});
+
+test('loadProject with a partial project fills the rest from the defaults', () => {
+  const store = createStore();
+  store.loadProject({ project: { modelId: 'custom', background: '#000000' } });
+  assert.deepEqual(store.getState().project, {
+    modelId: 'custom',
+    customModel: { width: 71.6, height: 147.6, cornerRadius: 12, bleed: 2 },
+    layers: [],
+    background: '#000000',
+  });
+  assert.deepEqual(store.getState().exportOptions, DEFAULTS.exportOptions);
+  assert.equal(store.getState().orderId, '');
+});
+
+test('loadProject with partial export options keeps the other defaults', () => {
+  const store = createStore();
+  store.loadProject({ project: {}, exportOptions: { dpi: 150 }, orderId: 'b'.repeat(50) });
+  assert.deepEqual(store.getState().exportOptions, {
+    format: 'png',
+    dpi: 150,
+    bleedOn: true,
+    bleedMm: null,
+    clip: 'rect',
+    cameraHole: false,
+    mirror: false,
+  });
+  assert.equal(store.getState().orderId, 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+});
+
 test('setExportOptions, setOrderId and setUi do not touch the history', () => {
   const store = createStore();
   store.setExportOptions({ dpi: 150 });
