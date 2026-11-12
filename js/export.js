@@ -9,7 +9,7 @@ import { exportFileName } from './export-name.js';
 
 const MAX_SIDE_PX = 8192;
 const MAX_AREA_PX = 16777216;
-export const LIMIT_MESSAGE ='Arquivo grande demais para este navegador. Escolha um DPI menor.';
+export const LIMIT_MESSAGE = 'Arquivo grande demais para este navegador. Escolha um DPI menor.';
 const JPEG_QUALITY = 0.95;
 
 // Message when a canvas of this size is too large for common browsers, else null.
