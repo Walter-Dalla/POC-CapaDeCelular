@@ -1,6 +1,7 @@
 // Modelo panel: search and brand filter over the catalog, the list of models with a drawn
-// thumbnail, and the choice of the project's model.
-import { formatSize } from '../format.js';
+// thumbnail, the custom model form, and the choice of the project's model.
+import { formatSize, parseMm } from '../format.js';
+import { validateCustom, CUSTOM_MODEL_ID } from '../catalog.js';
 
 const ALL_BRANDS = 'Todas';
 const EMPTY_LIST_TEXT = 'Nenhum modelo encontrado. Use o modelo personalizado abaixo.';
@@ -28,6 +29,20 @@ export function modelListView(catalog, { query = '', brand = null, selectedId = 
 export function thumbBox(model) {
   const width = Math.round((model.case.width / model.case.height) * THUMB_HEIGHT);
   return { width: Math.max(THUMB_MIN_WIDTH, width), height: THUMB_HEIGHT };
+}
+
+const CUSTOM_FIELDS = ['width', 'height', 'cornerRadius', 'bleed'];
+
+// Numbers typed in the custom model fields and the pt-BR message of each invalid one.
+export function customFormResult(texts) {
+  const values = {};
+  for (const field of CUSTOM_FIELDS) values[field] = parseMm(texts[field]);
+  return { values, errors: validateCustom(values) };
+}
+
+// A measure as the custom fields show it: decimal comma, no forced decimal (12 -> '12', 71.6 -> '71,6').
+export function customFieldText(n) {
+  return String(n).replace('.', ',');
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -216,6 +231,93 @@ function buildPicker(content, ctx) {
   return render;
 }
 
+const CUSTOM_LABELS = {
+  width: 'Largura (mm)',
+  height: 'Altura (mm)',
+  cornerRadius: 'Raio dos cantos (mm)',
+  bleed: 'Sangria (mm)',
+};
+
+// Custom model section; returns `fill`, which puts the project's custom measures back in the fields.
+function buildCustomForm(content, ctx) {
+  const { state } = ctx;
+  const form = element('form', 'inset panel-model__custom');
+  form.noValidate = true;
+
+  const header = element('div');
+  header.append(
+    element('h2', 'title', 'Modelo personalizado'),
+    element('p', 'support panel-model__custom-text', 'Não achou o seu? Informe as medidas do gabarito da capa.'),
+  );
+
+  const grid = element('div', 'panel-model__fields');
+  const inputs = {};
+  const errors = {};
+  for (const field of CUSTOM_FIELDS) {
+    const id = `model-custom-${field}`;
+    const wrapper = element('div', 'field');
+    const label = element('label', 'field__label', CUSTOM_LABELS[field]);
+    label.htmlFor = id;
+    const input = element('input', 'field__input');
+    input.id = id;
+    input.type = 'text';
+    input.inputMode = 'decimal';
+    input.autocomplete = 'off';
+    const error = element('p', 'field__error panel-model__error');
+    error.id = `${id}-error`;
+    error.hidden = true;
+    wrapper.append(label, input, error);
+    grid.append(wrapper);
+    inputs[field] = input;
+    errors[field] = error;
+  }
+
+  const submit = element('button', 'btn btn--secondary', 'Usar estas medidas');
+  submit.type = 'submit';
+  form.append(header, grid, submit);
+  content.append(form);
+
+  function showErrors(messages) {
+    for (const field of CUSTOM_FIELDS) {
+      const message = messages[field];
+      const input = inputs[field];
+      errors[field].textContent = message ?? '';
+      errors[field].hidden = !message;
+      if (message) {
+        input.setAttribute('aria-invalid', 'true');
+        input.setAttribute('aria-describedby', errors[field].id);
+      } else {
+        input.removeAttribute('aria-invalid');
+        input.removeAttribute('aria-describedby');
+      }
+    }
+  }
+
+  function fill(customModel) {
+    for (const field of CUSTOM_FIELDS) inputs[field].value = customFieldText(customModel[field]);
+    showErrors({});
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const texts = {};
+    for (const field of CUSTOM_FIELDS) texts[field] = inputs[field].value;
+    const result = customFormResult(texts);
+    showErrors(result.errors);
+    const firstInvalid = CUSTOM_FIELDS.find((field) => result.errors[field]);
+    if (firstInvalid) {
+      inputs[firstInvalid].focus();
+      return;
+    }
+    state.updateProject((project) => ({ ...project, customModel: { ...result.values }, modelId: CUSTOM_MODEL_ID }));
+    state.commit();
+    fill(state.getState().project.customModel);
+  });
+
+  fill(state.getState().project.customModel);
+  return fill;
+}
+
 export function mount(container, ctx) {
   // Without a store there is no project whose model could be chosen.
   if (!ctx.state) return;
@@ -223,8 +325,10 @@ export function mount(container, ctx) {
   container.append(content);
 
   const renderPicker = ctx.catalog ? buildPicker(content, ctx) : null;
+  const fillCustom = buildCustomForm(content, ctx);
 
   ctx.state.subscribe((state, prev) => {
     if (renderPicker && state.project.modelId !== prev.project.modelId) renderPicker();
+    if (state.project.customModel !== prev.project.customModel) fillCustom(state.project.customModel);
   });
 }

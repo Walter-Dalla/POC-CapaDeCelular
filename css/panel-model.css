@@ -66,3 +66,25 @@
   flex-shrink: 0;
   color: var(--color-accent);
 }
+
+/* Custom model form */
+.panel-model__custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin: 0;
+}
+
+.panel-model__custom-text {
+  margin: var(--space-4) 0 0;
+}
+
+.panel-model__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.panel-model__error {
+  margin: 0;
+}
