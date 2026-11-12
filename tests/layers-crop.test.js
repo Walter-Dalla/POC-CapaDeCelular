@@ -94,6 +94,57 @@ test('clampCrop shifts the rectangle back inside before shrinking it', () => {
   });
 });
 
+function croppedProject(layerFields) {
+  return deepFreeze({
+    modelId: 'apple-iphone-15',
+    customModel: null,
+    background: '#FFFFFF',
+    layers: [
+      {
+        id: 'a',
+        name: 'foto',
+        imageId: 'img',
+        naturalWidth: 400,
+        naturalHeight: 400,
+        ...layerFields,
+      },
+    ],
+  });
+}
+
+const quarter = { x: 0.5, y: 0.5, width: 0.25, height: 0.5 };
+
+test('setCrop on an already cropped layer: right half → lower quarter', () => {
+  // Right half shown 20 mm wide at (10, 0): 0.1 mm per pixel. The crop centre
+  // goes from pixel (300, 200) to (250, 300): shift (-50, 100) px = (-5, 10) mm.
+  const p = croppedProject({ cx: 10, cy: 0, width: 20, rotation: 0, crop: rightHalf });
+  const layer = setCrop(p, 'a', quarter).layers[0];
+  assert.deepEqual(layer.crop, quarter);
+  near(layer.width, 10);
+  near(layerSize(layer).height, 20);
+  near(layer.cx, 5);
+  near(layer.cy, 10);
+});
+
+test('setCrop with rotation 30 turns the shift clockwise', () => {
+  // Shift (10, 0) mm turned 30°: (10 cos 30°, 10 sin 30°) = (8.660254, 5).
+  const layer = setCrop(project(30), 'a', rightHalf).layers[0];
+  near(layer.width, 20);
+  near(layer.cx, 8.660254, 1e-6);
+  near(layer.cy, 5, 1e-6);
+  assert.equal(layer.rotation, 30);
+});
+
+test('setCrop on a cropped layer with rotation 30', () => {
+  // Shift (-5, 10) mm turned 30°: x = -5 cos 30° - 10 sin 30° = -9.330127,
+  // y = -5 sin 30° + 10 cos 30° = 6.160254.
+  const p = croppedProject({ cx: 0, cy: 0, width: 20, rotation: 30, crop: rightHalf });
+  const layer = setCrop(p, 'a', quarter).layers[0];
+  near(layer.width, 10);
+  near(layer.cx, -9.330127, 1e-6);
+  near(layer.cy, 6.160254, 1e-6);
+});
+
 test('unknown id returns the same project', () => {
   const p = project(0);
   assert.equal(setCrop(p, 'x', rightHalf), p);

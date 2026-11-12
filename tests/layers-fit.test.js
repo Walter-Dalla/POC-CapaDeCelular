@@ -84,6 +84,23 @@ test('fill uses the cropped aspect: 400 x 733 with half height crop → 165.46',
   near2(layerSize(layer).height, 151.6);
 });
 
+test('fit uses the cropped aspect', () => {
+  // Half height crop: visible 400 x 366.5 px, height / width 0.91625;
+  // 147.6 / 0.91625 = 161.09 > 71.6, so width 71.6 and height 65.60.
+  const wide = project(400, 733, { crop: { x: 0, y: 0, width: 1, height: 0.5 } });
+  const a = fitLayer(wide, 'a', iphone15).layers[0];
+  near2(a.width, 71.6);
+  near2(layerSize(a).height, 65.6);
+  // Quarter width crop: visible 100 x 733 px, height / width 7.33;
+  // 147.6 / 7.33 = 20.14 < 71.6, so the height limits: 20.14 x 147.6.
+  const tall = project(400, 733, { crop: { x: 0.5, y: 0, width: 0.25, height: 1 } });
+  const b = fitLayer(tall, 'a', iphone15).layers[0];
+  near2(b.width, 20.14);
+  near2(layerSize(b).height, 147.6);
+  assert.equal(b.cx, 0);
+  assert.equal(b.rotation, 0);
+});
+
 test('centreLayer keeps size and rotation', () => {
   const layer = centreLayer(project(400, 733), 'a').layers[0];
   assert.equal(layer.cx, 0);
