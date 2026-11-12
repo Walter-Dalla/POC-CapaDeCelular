@@ -78,12 +78,26 @@ export function createStore() {
   let state = defaultState();
   let hist = history.createHistory(state.project);
   const listeners = new Set();
+  // Changes made by a subscriber while a notification runs wait here, so every
+  // subscriber gets every (state, prev) pair once and in the order of the changes.
+  const queue = [];
+  let notifying = false;
 
   function set(next) {
     if (next === state) return;
-    const prev = state;
+    queue.push([next, state]);
     state = next;
-    for (const fn of [...listeners]) fn(state, prev);
+    if (notifying) return;
+    notifying = true;
+    try {
+      while (queue.length > 0) {
+        const [current, prev] = queue.shift();
+        for (const fn of [...listeners]) fn(current, prev);
+      }
+    } finally {
+      notifying = false;
+      queue.length = 0;
+    }
   }
 
   function hasUncommitted() {
