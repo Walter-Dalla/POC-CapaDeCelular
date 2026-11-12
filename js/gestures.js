@@ -3,8 +3,9 @@
 // per gesture (on release, never per event). Points are in mm from the centre
 // of the cover; screen pixels only set the size of the touch targets.
 
-import { layerRect, pointInRotatedRect, selectionHandles, snapToZero } from './geometry.js';
+import { layerRect, pointInRotatedRect, rectCorners, selectionHandles, snapToZero, toLocal } from './geometry.js';
 import {
+  clampCrop,
   getLayer,
   layerBounds,
   lowerLayer,
@@ -14,11 +15,12 @@ import {
   raiseLayer,
   removeLayer,
   scaleLayer,
+  setCrop,
   setLayerWidth,
   setRotation,
   snapRotation,
 } from './layers.js';
-import { stageView } from './stage.js';
+import { cropFrame, cropRectOnCover, stageView } from './stage.js';
 
 // Distance in screen px from a handle's centre that still hits it (44 px target).
 const HANDLE_HIT_PX = 22;
@@ -150,6 +152,55 @@ function isTextTarget(element) {
   return element.tagName === 'INPUT' && !NON_TEXT_INPUTS.has(element.type);
 }
 
+const FULL_CROP = Object.freeze({ x: 0, y: 0, width: 1, height: 1 });
+const MIN_CROP_SIDE = 0.05;
+const CROP_CORNERS = ['nw', 'ne', 'se', 'sw'];
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+// What a point hits on the crop draft of a layer: a corner ('nw', 'ne', 'se',
+// 'sw', within 22 screen px), the inside of the draft, or null.
+export function cropHit(layer, draft, point, pxPerMm) {
+  const rect = cropRectOnCover(layer, draft);
+  const corners = rectCorners(rect);
+  const radius = HANDLE_HIT_PX / pxPerMm;
+  for (let index = 0; index < CROP_CORNERS.length; index += 1) {
+    if (distance(corners[index], point) <= radius) return CROP_CORNERS[index];
+  }
+  return pointInRotatedRect(point.x, point.y, rect) ? 'inside' : null;
+}
+
+// Crop draft dragged by (dx, dy) in fractions of the whole image: a corner
+// moves that corner with the opposite one fixed, each side kept at least 0.05
+// and inside the image; 'inside' moves the rectangle, stopping at the edges
+// without changing its size.
+export function cropDrag(startDraft, part, dx, dy) {
+  const { x, y, width, height } = startDraft;
+  if (part === 'inside') {
+    return clampCrop({ x: clamp(x + dx, 0, 1 - width), y: clamp(y + dy, 0, 1 - height), width, height });
+  }
+  if (!CROP_CORNERS.includes(part)) return startDraft;
+  let left = x;
+  let top = y;
+  let right = x + width;
+  let bottom = y + height;
+  if (part.includes('w')) left = clamp(left + dx, 0, right - MIN_CROP_SIDE);
+  if (part.includes('e')) right = clamp(right + dx, left + MIN_CROP_SIDE, 1);
+  if (part.includes('n')) top = clamp(top + dy, 0, bottom - MIN_CROP_SIDE);
+  if (part.includes('s')) bottom = clamp(bottom + dy, top + MIN_CROP_SIDE, 1);
+  return clampCrop({ x: left, y: top, width: right - left, height: bottom - top });
+}
+
+// Pointer travel in mm on the cover turned into fractions of the layer's whole
+// image: un-rotated by the layer's rotation, divided by the size of its frame.
+function cropDelta(layer, dxMm, dyMm) {
+  const frame = cropFrame(layer);
+  const local = toLocal(dxMm, dyMm, { cx: 0, cy: 0, rotation: layer.rotation });
+  return { x: local.x / frame.width, y: local.y / frame.height };
+}
+
 // Wires the pointer on the stage canvas. Does nothing without the state or the stage.
 export function mountGestures(ctx) {
   if (!ctx.state || !ctx.stage) return;
@@ -172,6 +223,31 @@ export function mountGestures(ctx) {
     }
   }
 
+  // The layer in crop mode, or null.
+  function cropLayer() {
+    const { project, ui } = state.getState();
+    return ui.cropLayerId ? getLayer(project, ui.cropLayerId) : null;
+  }
+
+  function draftOf(layer) {
+    return state.getState().ui.cropDraft ?? layer.crop ?? FULL_CROP;
+  }
+
+  function cancelCrop() {
+    state.setUi({ cropLayerId: null, cropDraft: null });
+  }
+
+  // Applies the draft to the layer as one undo step and leaves crop mode.
+  function applyCrop() {
+    const layer = cropLayer();
+    if (layer) {
+      const draft = draftOf(layer);
+      state.updateProject((project) => setCrop(project, layer.id, draft));
+      state.commit();
+    }
+    cancelCrop();
+  }
+
   // Cursor for what lies under a mouse that is not dragging.
   function hover(point) {
     const current = state.getState();
@@ -180,8 +256,25 @@ export function mountGestures(ctx) {
       setCursor(null);
       return;
     }
+    const cropping = cropLayer();
+    if (cropping) {
+      const part = cropHit(cropping, draftOf(cropping), point, scale);
+      setCursor(part === 'inside' ? 'move' : part ? CURSORS[part] : null);
+      return;
+    }
     const hit = hitTest(current.project.layers, point, scale, current.ui.selectedLayerId);
     setCursor(hit ? CURSORS[hit.part] : null);
+  }
+
+  // In crop mode the pointer moves a corner or the whole of the draft.
+  function startCropGesture(layer, point, pointerId) {
+    const scale = ctx.stage.pxPerMm();
+    if (!(scale > 0)) return;
+    const draft = draftOf(layer);
+    const part = cropHit(layer, draft, point, scale);
+    if (!part) return;
+    gesture = { kind: 'crop', pointerId, layerId: layer.id, start: { draft, part, x: point.x, y: point.y }, moved: false };
+    setCursor(part === 'inside' ? 'grabbing' : CURSORS[part]);
   }
 
   // Applies a project change and remembers that the gesture changed something.
@@ -225,6 +318,11 @@ export function mountGestures(ctx) {
       change((project) => setLayerWidth(project, layerId, scaleFromHandle(start, point)));
     } else if (kind === 'rotate') {
       change((project) => setRotation(project, layerId, rotateFromHandle(start, point, event.shiftKey)));
+    } else if (kind === 'crop') {
+      const layer = cropLayer();
+      if (!layer || layer.id !== layerId) return;
+      const delta = cropDelta(layer, point.x - start.x, point.y - start.y);
+      state.setUi({ cropDraft: cropDrag(start.draft, start.part, delta.x, delta.y) });
     } else if (kind === 'pinch') {
       const step = pinchStep(start, pointers.get(gesture.pointerIds[0]), pointers.get(gesture.pointerIds[1]));
       change((project) =>
@@ -288,7 +386,10 @@ export function mountGestures(ctx) {
     const point = ctx.stage.toMm(event.clientX, event.clientY);
     canvas.setPointerCapture(event.pointerId);
     pointers.set(event.pointerId, point);
-    if (pointers.size === 1 && !gesture) startLayerGesture(point, event.pointerId);
+    const cropping = cropLayer();
+    if (cropping) {
+      if (pointers.size === 1 && !gesture) startCropGesture(cropping, point, event.pointerId);
+    } else if (pointers.size === 1 && !gesture) startLayerGesture(point, event.pointerId);
     else if (pointers.size === 2) startPinch();
   });
 
@@ -326,10 +427,17 @@ export function mountGestures(ctx) {
     { passive: false },
   );
 
-  // Applies a key action to the selected layer; returns whether it was used.
+  // Applies a key action to the selected layer, or in crop mode to the crop;
+  // returns whether it was used.
   function applyKey(action) {
     const current = state.getState();
     if (stageView(current) !== 'edit') return false;
+    if (cropLayer()) {
+      if (action.type === 'cancel') cancelCrop();
+      else if (action.type === 'confirm') applyCrop();
+      else return false;
+      return true;
+    }
     const layer = selectedLayer();
     switch (action.type) {
       case 'cancel':
@@ -369,5 +477,35 @@ export function mountGestures(ctx) {
       targetIsText: isTextTarget(event.target),
     });
     if (action && applyKey(action)) event.preventDefault();
+  });
+
+  document.getElementById('btn-crop-apply').addEventListener('click', applyCrop);
+  document.getElementById('btn-crop-cancel').addEventListener('click', cancelCrop);
+  document.getElementById('btn-crop-reset').addEventListener('click', () => {
+    if (cropLayer()) state.setUi({ cropDraft: { ...FULL_CROP } });
+  });
+
+  // Crop mode follows the state: entering it selects the layer and starts the
+  // draft from its crop; a draft dropped by undo starts again from the crop;
+  // leaving the Imagens tab, removing the layer or selecting another one
+  // cancels it.
+  state.subscribe((next, prev) => {
+    const id = next.ui.cropLayerId;
+    if (!id) return;
+    const layer = getLayer(next.project, id);
+    const leftTab = prev.ui.tab === 'images' && next.ui.tab !== 'images';
+    if (!layer || leftTab) {
+      cancelCrop();
+      return;
+    }
+    if (id !== prev.ui.cropLayerId) {
+      state.setUi({ selectedLayerId: id, cropDraft: next.ui.cropDraft ?? layer.crop ?? { ...FULL_CROP } });
+      return;
+    }
+    if (next.ui.selectedLayerId !== prev.ui.selectedLayerId && next.ui.selectedLayerId !== id) {
+      cancelCrop();
+      return;
+    }
+    if (next.ui.cropDraft === null) state.setUi({ cropDraft: layer.crop ?? { ...FULL_CROP } });
   });
 }

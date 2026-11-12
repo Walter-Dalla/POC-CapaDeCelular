@@ -81,6 +81,46 @@ test('editDrawPlan: a selection while cropping draws no selection', () => {
   assert.equal(plan.includes('selection'), false);
 });
 
+test('editDrawPlan: cropping on a model with cutouts keeps the cover marks over the image', () => {
+  const draft = { x: 0.2, y: 0.2, width: 0.6, height: 0.6 };
+  const ui = { selectedLayerId: 'layer-1', cropLayerId: 'layer-1', cropDraft: draft, guides: { v: true, h: false } };
+  assert.deepEqual(editDrawPlan(state([LAYER], ui), IPHONE_15), [
+    'shadow',
+    'background',
+    'layers-faded',
+    'layers-clipped',
+    'crop-image',
+    'cutouts',
+    'contour',
+    'bleed',
+    'safe-margin',
+    'guide-v',
+    'crop-frame',
+  ]);
+});
+
+test('editDrawPlan: cropping on a model without cutouts', () => {
+  const custom = { ...IPHONE_15, id: 'custom', cutouts: [] };
+  const ui = { selectedLayerId: 'layer-1', cropLayerId: 'layer-1' };
+  assert.deepEqual(editDrawPlan(state([LAYER], ui), custom), [
+    'shadow',
+    'background',
+    'layers-faded',
+    'layers-clipped',
+    'crop-image',
+    'contour',
+    'bleed',
+    'safe-margin',
+    'crop-frame',
+  ]);
+});
+
+test('editDrawPlan: a crop naming a missing layer draws no crop steps', () => {
+  const plan = editDrawPlan(state([LAYER], { cropLayerId: 'gone' }), IPHONE_15);
+  assert.equal(plan.includes('crop-image'), false);
+  assert.equal(plan.includes('crop-frame'), false);
+});
+
 test('editDrawPlan: a selection naming a missing layer draws no selection', () => {
   const plan = editDrawPlan(state([LAYER], { selectedLayerId: 'gone' }), IPHONE_15);
   assert.equal(plan.includes('selection'), false);

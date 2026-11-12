@@ -47,11 +47,11 @@ test('cropFrame: a layer without crop is its own frame', () => {
   assert.deepEqual(rounded(cropFrame(plain)), { cx: 10, cy: 0, width: 20, height: 20, rotation: 0 });
 });
 
-test('editDrawPlan: crop mode ends with the crop step and no selection', () => {
+test('editDrawPlan: crop mode draws the image under the cover marks, the frame last, no selection', () => {
   const model = { case: { width: 71.6, height: 147.6, cornerRadius: 12 }, cutouts: [], bleed: 2 };
   const state = {
     project: { layers: [LAYER], background: '#FFFFFF' },
     ui: { tab: 'images', selectedLayerId: 'layer-1', cropLayerId: 'layer-1', cropDraft: null, showSafeMargin: false, guides: { v: false, h: false } },
   };
-  assert.deepEqual(editDrawPlan(state, model), ['shadow', 'background', 'layers-faded', 'layers-clipped', 'contour', 'bleed', 'crop']);
+  assert.deepEqual(editDrawPlan(state, model), ['shadow', 'background', 'layers-faded', 'layers-clipped', 'crop-image', 'contour', 'bleed', 'crop-frame']);
 });

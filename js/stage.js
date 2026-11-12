@@ -215,14 +215,17 @@ export function editDrawPlan(state, model) {
   const { project, ui } = state;
   const plan = ['shadow', 'background'];
   if (project.layers.length === 0) return [...plan, ...(model.cutouts?.length ? ['cutouts'] : []), 'bleed'];
+  const cropping = cropLayerOf(state) !== null;
   plan.push('layers-faded', 'layers-clipped');
+  // While cropping, the whole image sits under the cover marks and its frame on top of them.
+  if (cropping) plan.push('crop-image');
   if (model.cutouts?.length) plan.push('cutouts');
   plan.push('contour', 'bleed');
   if (ui.showSafeMargin) plan.push('safe-margin');
   if (ui.guides?.v) plan.push('guide-v');
   if (ui.guides?.h) plan.push('guide-h');
   const selected = project.layers.some((layer) => layer.id === ui.selectedLayerId);
-  if (cropLayerOf(state)) plan.push('crop');
+  if (cropping) plan.push('crop-frame');
   else if (selected && ui.cropLayerId === null) plan.push('selection');
   return plan;
 }
@@ -333,8 +336,9 @@ function drawSelection(g, layer, scale, tokens) {
 function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
   const { project, ui } = state;
   const cropLayer = cropLayerOf(state);
-  // The layer being cropped is drawn on its own by the crop step.
+  // The layer being cropped is drawn on its own by the crop steps.
   const layers = cropLayer ? project.layers.filter((layer) => layer !== cropLayer) : project.layers;
+  const cropDraftRect = () => cropRectOnCover(cropLayer, ui.cropDraft ?? cropLayer.crop ?? FULL_CROP);
   const steps = {
     shadow() {
       g.save();
@@ -423,21 +427,24 @@ function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
       const layer = layers.find((item) => item.id === ui.selectedLayerId);
       drawSelection(g, layer, scale, tokens);
     },
-    crop() {
+    // The whole image of the layer being cropped: faded outside the draft, full inside it.
+    'crop-image'() {
       const frame = cropFrame(cropLayer);
       const whole = { ...cropLayer, cx: frame.cx, cy: frame.cy, width: frame.width, crop: FULL_CROP };
-      const draft = cropRectOnCover(cropLayer, ui.cropDraft ?? cropLayer.crop ?? FULL_CROP);
       g.save();
       g.globalAlpha = OUTSIDE_ALPHA;
       drawLayers(g, [whole], getBitmap, scale);
       g.restore();
       g.save();
       g.beginPath();
-      traceRect(g, draft, scale);
+      traceRect(g, cropDraftRect(), scale);
       g.clip();
       drawLayers(g, [whole], getBitmap, scale);
       g.restore();
-      drawFrame(g, draft, scale, tokens);
+    },
+    // The draft outline and its four corner handles, over everything else.
+    'crop-frame'() {
+      drawFrame(g, cropDraftRect(), scale, tokens);
     },
   };
   for (const step of editDrawPlan(state, model)) steps[step]();
