@@ -27,11 +27,12 @@ function aspectOf(layer) {
   return (crop.height * layer.naturalHeight) / (crop.width * layer.naturalWidth);
 }
 
-// Width that makes the layer cover the whole case plus bleed rectangle.
+// Width that makes the layer cover the whole case plus bleed rectangle,
+// within the 5–2000 mm width limits.
 function coverWidth(layer, model, bleedMm) {
   const width = model.case.width + 2 * bleedMm;
   const height = model.case.height + 2 * bleedMm;
-  return Math.max(width, height / aspectOf(layer));
+  return clampWidth(Math.max(width, height / aspectOf(layer)));
 }
 
 function clamp(value, min, max) {
@@ -192,4 +193,33 @@ export function rotateLayerBy(project, id, degrees) {
 // Angle rounded to the nearest multiple of step, in (−180, 180].
 export function snapRotation(degrees, step = 15) {
   return normalizeRotation(Math.round(degrees / step) * step);
+}
+
+// "Preencher": the smallest size whose visible part covers the whole case
+// plus bleed rectangle; centred, no rotation.
+export function fillLayer(project, id, model, bleedMm) {
+  return updateLayer(project, id, (layer) => ({
+    ...layer,
+    cx: 0,
+    cy: 0,
+    rotation: 0,
+    width: coverWidth(layer, model, bleedMm),
+  }));
+}
+
+// "Caber": the largest size wholly inside the case rectangle; centred, no
+// rotation.
+export function fitLayer(project, id, model) {
+  return updateLayer(project, id, (layer) => ({
+    ...layer,
+    cx: 0,
+    cy: 0,
+    rotation: 0,
+    width: clampWidth(Math.min(model.case.width, model.case.height / aspectOf(layer))),
+  }));
+}
+
+// Centres the layer on the cover, keeping its size and rotation.
+export function centreLayer(project, id) {
+  return updateLayer(project, id, (layer) => ({ ...layer, cx: 0, cy: 0 }));
 }
