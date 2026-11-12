@@ -508,3 +508,8 @@ textarea:focus-visible,
 .dialog::backdrop {
   background: var(--color-backdrop);
 }
+
+/* Link hover */
+a:hover {
+  color: var(--color-warn);
+}

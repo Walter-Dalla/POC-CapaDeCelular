@@ -1,0 +1,364 @@
+/* Page shell: header, stage area and step panel. Every colour, radius and spacing comes from css/tokens.css. */
+
+/* The hidden attribute wins over any display rule of the shell */
+[hidden] {
+  display: none !important;
+}
+
+/* The page fills the viewport height */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* Header */
+.app-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: var(--space-20);
+  padding: var(--space-12) var(--space-24);
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-bg);
+}
+
+.app-header__divider {
+  width: 1px;
+  height: 32px;
+  background: var(--color-border);
+}
+
+.app-header__title {
+  flex-grow: 1;
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 500;
+  font-size: 18px;
+  color: var(--color-text-2);
+}
+
+.app-header__privacy {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-3);
+}
+
+.app-header__new-icon {
+  display: none;
+}
+
+.model-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: var(--touch-min);
+  padding: var(--space-4) var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-field);
+  background: var(--color-surface);
+  color: var(--color-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-chip__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.model-chip__name {
+  font-weight: 700;
+}
+
+.model-chip__size {
+  font-size: 12px;
+  color: var(--color-text-3);
+}
+
+/* Stage and panel */
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-height: 0;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-grow: 1;
+  gap: var(--space-16);
+  min-width: 0;
+  min-height: 0;
+  padding: var(--space-24);
+  overflow: hidden;
+  background-color: var(--color-stage);
+  background-image: radial-gradient(var(--color-stage-dot) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.stage:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: -3px;
+}
+
+/* Pill bars above the cover: tools and crop actions */
+.stage-bar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+  max-width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  background: var(--color-bg);
+}
+
+.stage-tool--icon {
+  width: var(--touch-min);
+  padding: 0;
+}
+
+.stage-tool[aria-pressed="true"] {
+  background: var(--color-surface);
+  color: var(--color-warn);
+}
+
+.stage-bar__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+}
+
+.stage-readout {
+  padding: 0 var(--space-12);
+  font-size: 13px;
+  color: var(--color-text-3);
+}
+
+.stage-readout strong {
+  color: var(--color-text);
+}
+
+.crop-bar__text {
+  margin: 0;
+  padding: 0 var(--space-12);
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+.stage-caption {
+  flex-shrink: 0;
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+/* Box of the cover: the canvas fills it, the empty state sits over the cover */
+.stage-box {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+}
+
+.stage-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.stage-empty {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-16);
+  width: 300px;
+  max-width: 100%;
+  padding: var(--space-40) var(--space-24);
+  transform: translate(-50%, -50%);
+  color: var(--color-bg);
+  text-align: center;
+}
+
+.stage-empty__kicker {
+  margin: 0;
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--color-brand);
+}
+
+.stage-empty__title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.stage-empty__steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.stage-empty__steps li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.stage-empty__step {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--radius-thumb);
+  background: var(--color-brand);
+  color: var(--color-text);
+  font-family: var(--font-label);
+  font-size: 12px;
+}
+
+.stage-empty__add {
+  min-height: 48px;
+  padding: 0 var(--space-20);
+  border-radius: var(--radius-card);
+  background: var(--color-brand);
+  color: var(--color-text);
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.stage-empty__hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-on-cover-2);
+}
+
+/* Legend under the cover */
+.stage-legend {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-20);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--color-text-3);
+}
+
+/* Floating notices at the bottom of the stage */
+.notices {
+  position: absolute;
+  left: var(--space-24);
+  right: var(--space-24);
+  bottom: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  pointer-events: none;
+}
+
+.notices > .notice {
+  width: 100%;
+  max-width: 480px;
+  pointer-events: auto;
+}
+
+.notice__icon {
+  flex-shrink: 0;
+}
+
+.notice__body {
+  flex-grow: 1;
+}
+
+.notice__action {
+  margin-left: var(--space-4);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Step panel */
+.panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-surface);
+}
+
+.panel__body {
+  flex-grow: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.drawer-handle {
+  display: none;
+}
+
+/* Confirmation dialog */
+.dialog .support {
+  margin: var(--space-8) 0 0;
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin-top: var(--space-24);
+}
+
+/* Stage and panel side by side */
+@media (min-width: 900px) {
+  .workspace {
+    flex-direction: row;
+  }
+
+  .panel {
+    flex: 0 0 400px;
+    width: 400px;
+    border-left: 1px solid var(--color-line);
+  }
+}
