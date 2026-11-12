@@ -51,6 +51,8 @@ test('checkExportLimit: a side over 8192 px or an area over 16 777 216 px', () =
 
 test('renderPlan for the defaults', () => {
   const plan = renderPlan(makeState(), iphone15);
+  assert.ok(Math.abs(plan.widthMm - 75.6) < 1e-9, `widthMm ${plan.widthMm}`);
+  assert.ok(Math.abs(plan.heightMm - 151.6) < 1e-9, `heightMm ${plan.heightMm}`);
   assert.equal(plan.widthPx, 893);
   assert.equal(plan.heightPx, 1791);
   assert.ok(Math.abs(plan.scale - 11.811) < 0.001, `scale ${plan.scale}`);
@@ -73,6 +75,8 @@ test('renderPlan for JPEG: jpeg mime and quality 0.95', () => {
 
 test('renderPlan with the bleed off', () => {
   const plan = renderPlan(makeState({ bleedOn: false }), iphone15);
+  assert.equal(plan.widthMm, 71.6);
+  assert.equal(plan.heightMm, 147.6);
   assert.equal(plan.widthPx, 846);
   assert.equal(plan.heightPx, 1743);
   assert.equal(plan.bleedMm, 0);

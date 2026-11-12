@@ -1,10 +1,9 @@
 // Exportar panel: the export options (format, resolution, cut, bleed, camera hole, mirror), the
 // order field, the summary of the final file and the low-resolution warning.
-import { effectiveBleed, exportSize } from '../geometry.js';
+import { effectiveBleed } from '../geometry.js';
 import { formatDpi, formatPx, formatSize, parseMm, plural } from '../format.js';
-import { exportFileName } from '../export-name.js';
 import { effectiveDpi, lowResLayers } from '../layers.js';
-import { LIMIT_MESSAGE, download, exportFile } from '../export.js';
+import { LIMIT_MESSAGE, download, exportFile, renderPlan } from '../export.js';
 
 const FORMATS = ['png', 'jpeg'];
 const DPIS = [150, 300, 600];
@@ -88,23 +87,15 @@ function lowResWarning(project) {
 
 // Texts of the "ARQUIVO FINAL" summary for the current state and model: size in mm and in px with
 // their notes, the file name and the low-resolution warning.
+// Size, bleed and file name come from the export plan, so the summary always matches the file.
 export function summaryView(state, model) {
-  const { exportOptions } = state;
-  const bleed = effectiveBleed(exportOptions, model);
-  const size = exportSize(model, bleed, exportOptions.dpi);
+  const plan = renderPlan(state, model);
   return {
-    sizeMm: formatSize(size.widthMm, size.heightMm),
-    sizeNote: bleed > 0 ? `capa + ${bleedText(bleed)} de sangria por lado` : 'capa sem sangria',
-    sizePx: formatPx(size.widthPx, size.heightPx),
-    pxNote: `a ${exportOptions.dpi} DPI · cores em RGB`,
-    fileName: exportFileName({
-      orderId: state.orderId,
-      modelId: model.id,
-      widthMm: size.widthMm,
-      heightMm: size.heightMm,
-      dpi: exportOptions.dpi,
-      format: exportOptions.format,
-    }),
+    sizeMm: formatSize(plan.widthMm, plan.heightMm),
+    sizeNote: plan.bleedMm > 0 ? `capa + ${bleedText(plan.bleedMm)} de sangria por lado` : 'capa sem sangria',
+    sizePx: formatPx(plan.widthPx, plan.heightPx),
+    pxNote: `a ${plan.dpi} DPI · cores em RGB`,
+    fileName: plan.fileName,
     warning: lowResWarning(state.project),
   };
 }

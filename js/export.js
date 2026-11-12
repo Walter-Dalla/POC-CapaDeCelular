@@ -26,6 +26,8 @@ export function renderPlan(state, model) {
   const bleedMm = effectiveBleed(exportOptions, model);
   const size = exportSize(model, bleedMm, exportOptions.dpi);
   return {
+    widthMm: size.widthMm,
+    heightMm: size.heightMm,
     widthPx: size.widthPx,
     heightPx: size.heightPx,
     scale: pxPerMm(exportOptions.dpi),
