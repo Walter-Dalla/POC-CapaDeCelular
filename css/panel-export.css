@@ -1,1 +1,164 @@
-/* Exportar panel. */
+/* Exportar panel. Every colour, radius and spacing comes from css/tokens.css. */
+
+/* The tab panel scrolls; the footer with the download button stays at its bottom edge */
+#panel-export {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-export__download {
+  width: 100%;
+  min-height: 56px;
+  font-size: 18px;
+}
+
+/* The board's 18px gap and 14px row padding have no token: the nearest ones are used. The panel
+   has no compact element, so the collapsed drawer shows nothing of it; the shell opens the drawer
+   expanded on this tab. */
+.panel-export {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-20);
+}
+
+/* Format and resolution side by side */
+.panel-export__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-16);
+}
+
+.panel-export__option {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.panel-export__label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.panel-export .segmented button:disabled {
+  color: var(--color-text-3);
+  cursor: default;
+}
+
+/* Options card: one row per switch */
+.panel-export__card {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-export__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 60px;
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-export__row:last-child {
+  border-bottom: 0;
+}
+
+.panel-export__row-text {
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.panel-export__row-title {
+  font-weight: 700;
+}
+
+.panel-export__row-note {
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+.panel-export__bleed {
+  width: 76px;
+  text-align: center;
+}
+
+.panel-export__bleed:disabled {
+  border-color: var(--color-border);
+  color: var(--color-text-3);
+}
+
+.panel-export__error {
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panel-export .switch:disabled {
+  cursor: default;
+}
+
+.panel-export .switch:disabled::before {
+  border-color: var(--color-border);
+}
+
+.panel-export .switch:disabled::after {
+  background: var(--color-text-3);
+}
+
+/* Order field */
+.panel-export__help {
+  margin: 0;
+}
+
+/* Final file summary */
+.panel-export__summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.panel-export__summary-title {
+  margin: 0;
+  font-weight: 400;
+}
+
+.panel-export__values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.panel-export__value {
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 22px;
+}
+
+.panel-export__file {
+  font-size: 13px;
+  color: var(--color-text-2);
+  overflow-wrap: anywhere;
+}
+
+/* Low-resolution warning */
+.panel-export__icon {
+  flex-shrink: 0;
+}
+
+.panel-export__link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Privacy and colour notes */
+.panel-export__colour {
+  margin: 0;
+}
