@@ -517,3 +517,46 @@
     border-left: 1px solid var(--color-line);
   }
 }
+
+/* Empty state placed by the stage over the case rectangle (left, top, width, height set from the script) */
+.stage-empty--placed {
+  max-width: none;
+  overflow: hidden;
+  transform: none;
+}
+
+/* Legend items: a line sample beside each text, as drawn on the stage */
+.stage-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.stage-legend__sample {
+  flex-shrink: 0;
+  width: 18px;
+  height: 0;
+  border-top: 2px solid var(--color-text);
+}
+
+.stage-legend__sample--bleed {
+  border-top-style: dashed;
+  border-top-color: var(--color-guide);
+}
+
+.stage-legend__sample--margin {
+  border-top-style: dashed;
+  border-top-color: var(--color-warn);
+}
+
+.stage-legend__sample--cut {
+  border-top-style: dashed;
+}
+
+.stage-legend__sample--outside {
+  width: 14px;
+  height: 14px;
+  border-top: 0;
+  background: var(--brand-purple);
+  opacity: 0.4;
+}
