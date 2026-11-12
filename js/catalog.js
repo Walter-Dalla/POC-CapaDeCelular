@@ -114,3 +114,89 @@ export function validateCatalog(list) {
   });
   return errors;
 }
+
+export const DEFAULT_MODEL_ID = 'apple-iphone-15';
+export const CUSTOM_MODEL_ID = 'custom';
+const CUSTOM_MODEL_NAME = 'Modelo personalizado';
+
+export function normalizeSearch(text) {
+  return String(text ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
+
+export function createCatalog(list) {
+  const models = [...list];
+  const byId = new Map(models.map((model) => [model.id, model]));
+  const haystacks = new Map(
+    models.map((model) => [model.id, normalizeSearch(`${model.brand} ${model.name}`)]),
+  );
+
+  return {
+    listBrands() {
+      return [...new Set(models.map((model) => model.brand))];
+    },
+    listModels({ brand = null, query = '' } = {}) {
+      const words = normalizeSearch(query).split(/\s+/).filter(Boolean);
+      return models
+        .filter((model) => brand === null || model.brand === brand)
+        .filter((model) => words.every((word) => haystacks.get(model.id).includes(word)));
+    },
+    getModel(id) {
+      return byId.get(id) ?? null;
+    },
+  };
+}
+
+const MESSAGE_POSITIVE = 'Informe um valor maior que zero.';
+const MESSAGE_MAX_SIDE = 'Informe um valor de até 500 mm.';
+const MESSAGE_RADIUS_MIN = 'Informe um valor de zero ou mais.';
+const MESSAGE_RADIUS_MAX = 'O raio não pode passar da metade do lado menor.';
+const MESSAGE_BLEED = 'Informe um valor entre 0 e 10 mm.';
+
+export function validateCustom({ width, height, cornerRadius, bleed }) {
+  const errors = {};
+  for (const [field, value] of [['width', width], ['height', height]]) {
+    if (!isNumber(value) || value <= 0) errors[field] = MESSAGE_POSITIVE;
+    else if (value > MAX_CASE_SIDE) errors[field] = MESSAGE_MAX_SIDE;
+  }
+  if (!isNumber(cornerRadius) || cornerRadius < 0) {
+    errors.cornerRadius = MESSAGE_RADIUS_MIN;
+  } else if (!errors.width && !errors.height && cornerRadius > Math.min(width, height) / 2) {
+    errors.cornerRadius = MESSAGE_RADIUS_MAX;
+  }
+  if (!isNumber(bleed) || bleed < 0 || bleed > MAX_BLEED) errors.bleed = MESSAGE_BLEED;
+  return errors;
+}
+
+function customModel(custom) {
+  const { width, height, cornerRadius, bleed } = custom ?? {};
+  return {
+    id: CUSTOM_MODEL_ID,
+    brand: '',
+    name: CUSTOM_MODEL_NAME,
+    case: { width, height, cornerRadius },
+    cutouts: [],
+    bleed,
+    verified: false,
+  };
+}
+
+export function resolveModel(project, catalog) {
+  if (catalog && project.modelId !== CUSTOM_MODEL_ID) {
+    const model = catalog.getModel(project.modelId);
+    if (model) return model;
+  }
+  return customModel(project.customModel);
+}
+
+export async function loadCatalog(url = './data/models.json') {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Catálogo indisponível (HTTP ${response.status})`);
+  const list = await response.json();
+  const errors = validateCatalog(list);
+  if (errors.length > 0) throw new Error(`Catálogo inválido: ${errors.join('; ')}`);
+  return createCatalog(list);
+}
