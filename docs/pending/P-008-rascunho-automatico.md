@@ -34,8 +34,8 @@ Tudo vive na memória da página: recarregar, fechar a aba por engano ou o naveg
 
 ## Code references
 Os arquivos deste item nascem em P-001 e P-003; do código atual só existe o que eles substituem:
-- `handleUserImageLoad` `js/p5.js:69` — recebe o arquivo do usuário e guarda só a imagem decodificada, em memória (`js/p5.js:72`)
-- `configs` `js/p5.js:2` — estado em memória, perdido ao recarregar
+- `handleUserImageLoad` `js/p5.js:69` — recebe o arquivo do usuário e guarda só a imagem decodificada, em memória (`js/p5.js:72`) [code js/p5.js:69-75]
+- `configs` `js/p5.js:2` — estado em memória, perdido ao recarregar [code js/p5.js:2-12]
 
 ## Other references
 - P-003 § Strategy 8 — listava "salvar o projeto entre sessões" como fora do escopo; passa a valer este item.
@@ -43,4 +43,4 @@ Os arquivos deste item nascem em P-001 e P-003; do código atual só existe o qu
 - Aceitação: `npm test` passa; `/wh:qa-visual`: montar uma capa com duas imagens, recarregar a página e ver a mesma composição (modelo, posições, giro, ordem, cor de fundo); "Começar do zero" esvazia o palco e, depois de recarregar, o palco continua vazio.
 
 ## Open questions
-- O rascunho deve expirar sozinho (ex.: depois de 7 dias)? Num computador de balcão, a arte de um cliente fica guardada até alguém começar outra. Este item assume que não expira e que "Novo projeto" é o jeito de limpar.
+- O rascunho deve expirar sozinho (ex.: depois de 7 dias)? Num computador de balcão, a arte de um cliente fica guardada até alguém começar outra. Este item assume que não expira e que "Novo projeto" é o jeito de limpar. → Não expira (owner, 2026-11-11)

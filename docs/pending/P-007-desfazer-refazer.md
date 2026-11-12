@@ -29,8 +29,8 @@ No editor descrito em P-003, um arrasto errado, uma camada removida por engano o
 
 ## Code references
 Os arquivos deste item nascem em P-001 e P-003; do código atual só existe o que eles substituem:
-- `configs` `js/p5.js:2` — estado global mutável, sem histórico
-- `mouseDragged` `js/p5.js:53` — altera a posição a cada evento do mouse; no editor novo o passo fecha ao soltar
+- `configs` `js/p5.js:2` — estado global mutável, sem histórico [code js/p5.js:2-12]
+- `mouseDragged` `js/p5.js:53` — altera a posição a cada evento do mouse; no editor novo o passo fecha ao soltar [code js/p5.js:53-60]
 
 ## Other references
 - P-003 § Strategy 8 — listava desfazer/refazer como fora do escopo; passa a valer este item.

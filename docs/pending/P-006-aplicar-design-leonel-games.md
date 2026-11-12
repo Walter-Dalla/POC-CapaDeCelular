@@ -39,6 +39,8 @@ O dono aprovou o design do canvas "Leonel Games — Estúdio de Capas" ("gostei"
    | `--color-danger` | `#FF9B8A` | erro (fundo `#3D1D18`, texto `#FFD2CA`) |
    | `--brand-gradient` | `#F7941D → #E0218A → #6B2FA0 → #2D7FF9` | só na marca |
 
+   Cores usadas nas pranchas e ausentes da tabela (2026-11-11, `grep` dos `style` em `docs/design/*.dc.html`); viram tokens também: `#2B5C52` (borda da barra superior, do painel e da barra de ferramentas), `#1A4239` (fundo das seções em caixa: "Modelo personalizado", "Arquivo final", área de soltar), `#245248` (pontilhado do palco), `#8FB8AD` (borda da chave desligada), `#FFB3A6` (ícone Remover e texto de erro do campo), `#CFE4FF` (texto do aviso de informação), `#FFC95E` (botão primário com foco), `#2A0A1A` (texto do selo "Selecionada"), `#3F5F58` (texto de apoio sobre a capa branca), `#111111` e `#FFC531` (amostras de cor de fundo).
+
    Espaçamento: 4, 8, 12, 16, 20, 24, 40 px. Raios: 8 (miniatura), 10 (botão de ícone), 12 (campo), 14 (cartão, botão principal), 999 (filtro). Sombra da capa: `0 24px 60px rgba(0,0,0,.45)`.
 3. Tipografia por Google Fonts: Fredoka 500–700 (títulos, abas, botões), Nunito Sans 400–700 (texto, 15 px; apoio 13 px), Silkscreen 400 (rótulos curtos em maiúsculas e números das etapas, 12 px). Com `font-display: swap` e pilha do sistema como reserva.
 4. Componentes em `css/app.css`, como na prancha `Sistema.dc.html`: botão primário, secundário e de ícone (44 px), estados de foco (contorno branco de 3 px, afastado 2 px) e desativado; campo com rótulo e estado de erro; seletor segmentado; chave liga/desliga; abas numeradas; cartão selecionável; selos; avisos de atenção, erro e informação.
@@ -59,8 +61,8 @@ O dono aprovou o design do canvas "Leonel Games — Estúdio de Capas" ("gostei"
 
 ## Code references
 Os arquivos de código deste item nascem em P-001 a P-004; não há símbolo atual a citar além do que eles substituem:
-- `draw` `js/p5.js:33` — render atual do palco, sem nenhum dos elementos visuais do design
-- `setup` `js/p5.js:20` — cria o único controle visual da POC, o botão "Adicione uma imagem" (`js/p5.js:26`)
+- `draw` `js/p5.js:33` — render atual do palco, sem nenhum dos elementos visuais do design [code js/p5.js:33-36]
+- `setup` `js/p5.js:20` — cria o único controle visual da POC, o botão "Adicione uma imagem" (`js/p5.js:26`) [code js/p5.js:26-28]
 
 ## Other references
 - Canvas do design: https://claude.ai/artifact/A8UtnR3rUShFE8aGaVRuKT
@@ -71,5 +73,5 @@ Os arquivos de código deste item nascem em P-001 a P-004; não há símbolo atu
 - Elementos pedidos depois da aprovação do design e ausentes das pranchas: botões desfazer/refazer (P-007), "Novo projeto" e aviso "Rascunho restaurado" (P-008), margem de segurança no palco (P-003) e campo "Pedido ou cliente" na aba Exportar (P-004). Seguem os componentes de `Sistema.dc.html`; não exigem prancha nova.
 
 ## Open questions
-- O arquivo oficial do logotipo da Leonel Games (o leão, de preferência em SVG ou PNG com fundo transparente) será fornecido? Sem ele, fica o círculo em degradê.
-- Carregar as fontes do Google Fonts (depende de rede) ou hospedar os arquivos no próprio repositório? Este item assume Google Fonts.
+- O arquivo oficial do logotipo da Leonel Games (o leão, de preferência em SVG ou PNG com fundo transparente) será fornecido? Sem ele, fica o círculo em degradê. → Não agora: círculo em degradê, com um único ponto de troca (owner, 2026-11-11)
+- Carregar as fontes do Google Fonts (depende de rede) ou hospedar os arquivos no próprio repositório? Este item assume Google Fonts. → Google Fonts, por `<link>` (owner, 2026-11-11)

@@ -32,6 +32,7 @@ Hoje existe uma única moldura, a imagem `phone.png` (372×750 px), sem relaçã
 5. **Modelo personalizado**: o usuário informa largura, altura, raio dos cantos e sangria em mm. Cobre qualquer capa cujo gabarito o usuário tenha em mãos, sem depender do catálogo.
 6. Trocar de modelo preserva as camadas: como elas estão em mm a partir do centro da capa, continuam centradas no novo modelo.
 7. Catálogo inicial: cerca de dez modelos comuns no Brasil (iPhone 13, 14, 15 e 15 Pro Max; Galaxy S23, S24, A15 e A54; Moto G54; Redmi Note 13). Largura e altura a partir das especificações oficiais do aparelho; raio e recorte da câmera estimados. Todos entram com `verified: false` até o dono conferir com o gabarito real.
+   - Largura × altura conferidas (2026-11-11): iPhone 13 71,5 × 146,7 [doc https://support.apple.com/en-us/111872 2026-11-11]; iPhone 14 71,5 × 146,7 [doc https://support.apple.com/en-us/111850 2026-11-11]; iPhone 15 71,6 × 147,6 [doc https://support.apple.com/en-us/111831 2026-11-11]; iPhone 15 Pro Max 76,7 × 159,9 [doc https://support.apple.com/en-us/111828 2026-11-11]; Galaxy S24 70,6 × 147,0 e Moto G54 73,8 × 161,6 [doc docs/design/Modelo.dc.html, prancha aprovada]. Galaxy S23, A15, A54 e Redmi Note 13: página oficial não alcançada (samsung.com sem a linha de dimensões, mi.com 403) [undetermined]; ver Open questions.
    - Alternativa descartada: buscar medidas de uma API externa. Não existe fonte pública confiável de gabaritos de capa, e o site ficaria dependente de terceiros.
 
 ## Locations
@@ -43,15 +44,15 @@ Hoje existe uma única moldura, a imagem `phone.png` (372×750 px), sem relaçã
 - `tests/catalog.test.js` (novo) — validação; inclui um teste que valida o próprio `data/models.json`
 
 ## Code references
-- `preload` `js/p5.js:14` — hoje carrega a moldura única `phone.png` (`js/p5.js:16`); a moldura passa a vir do catálogo
-- `draw` `js/p5.js:33` — hoje desenha `phone.png` sobre a imagem; o desenho do contorno substitui essa chamada
+- `preload` `js/p5.js:14` — hoje carrega a moldura única `phone.png` (`js/p5.js:16`); a moldura passa a vir do catálogo [code js/p5.js:14-18]
+- `draw` `js/p5.js:33` — hoje desenha `phone.png` sobre a imagem; o desenho do contorno substitui essa chamada (`js/p5.js:36`) [code js/p5.js:33-36]
 
 ## Other references
 - P-001 § Strategy 4 — regra de unidade (milímetros, origem no centro da capa para as camadas).
-- `phone.png` — moldura atual; deixa de ser usada (remoção em P-005).
+- `phone.png` — moldura atual, 372 × 750 px [medido com `file`]; deixa de ser usada (remoção em P-005).
 - Aceitação: `npm test` passa; escolher cada modelo do catálogo muda a moldura no palco; o modelo personalizado aceita medidas e rejeita valores inválidos com mensagem.
 
 ## Open questions
-- As medidas vêm de onde? A capa impressa depende do gabarito do fornecedor das capas em branco (ou do berço da impressora), que raramente coincide com a medida do aparelho. Se o dono tiver esses gabaritos, eles substituem as medidas estimadas e os modelos passam a `verified: true`.
-- Quais modelos entram no catálogo inicial? Enquanto não houver resposta, os dez do passo 7.
-- A capa impressa cobre só a traseira plana (capa 2D) ou também as laterais (capa 3D, que precisa de gabarito desdobrado)? Este item assume só a traseira plana.
+- As medidas vêm de onde? A capa impressa depende do gabarito do fornecedor das capas em branco (ou do berço da impressora), que raramente coincide com a medida do aparelho. Se o dono tiver esses gabaritos, eles substituem as medidas estimadas e os modelos passam a `verified: true`. → Especificações oficiais do aparelho, todos com o selo "Medidas aproximadas"; os gabaritos entram depois por `data/models.json` (owner, 2026-11-11)
+- Quais modelos entram no catálogo inicial? Enquanto não houver resposta, os dez do passo 7. → Seis agora, os de medida conferida: iPhone 13, 14, 15 e 15 Pro Max, Galaxy S24 e Moto G54; Galaxy S23, A15, A54 e Redmi Note 13 entram quando as medidas forem confirmadas (owner, 2026-11-11)
+- A capa impressa cobre só a traseira plana (capa 2D) ou também as laterais (capa 3D, que precisa de gabarito desdobrado)? Este item assume só a traseira plana. → Só a traseira plana (2D) (owner, 2026-11-11)

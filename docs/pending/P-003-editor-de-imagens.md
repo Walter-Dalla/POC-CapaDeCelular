@@ -37,10 +37,10 @@ A POC aceita uma única imagem, no tamanho original, e só permite arrastá-la. 
 - `tests/layers.test.js` (novo), `tests/geometry.test.js` — operações de camada e teste de ponto
 
 ## Code references
-- `mouseDragged` `js/p5.js:53` — arrasto atual, que recentraliza no ponteiro (`js/p5.js:57-58`); substituído pelos gestos do passo 4
-- `loadUserImage` `js/p5.js:63` — cria um novo `input` a cada clique; substituído pelo seletor único com `multiple`
-- `handleUserImageLoad` `js/p5.js:69` — troca a única imagem (`js/p5.js:72`); passa a adicionar uma camada
-- `draw` `js/p5.js:33` — render contínuo a 60 qps; passa a ser sob demanda
+- `mouseDragged` `js/p5.js:53` — arrasto atual, que recentraliza no ponteiro (`js/p5.js:57-58`); substituído pelos gestos do passo 4 [code js/p5.js:53-60]
+- `loadUserImage` `js/p5.js:63` — cria um novo `input` a cada clique; substituído pelo seletor único com `multiple` [code js/p5.js:63-67]
+- `handleUserImageLoad` `js/p5.js:69` — troca a única imagem (`js/p5.js:72`); passa a adicionar uma camada [code js/p5.js:69-75]
+- `draw` `js/p5.js:33` — render contínuo (laço `draw` do p5); passa a ser sob demanda [code js/p5.js:33-36]
 
 ## Other references
 - P-001 § Strategy 4 — regra de unidade; P-002 § Strategy 3 — contorno da capa vindo do catálogo.
@@ -48,6 +48,6 @@ A POC aceita uma única imagem, no tamanho original, e só permite arrastá-la. 
 - Aceitação: `npm test` passa; `/wh:qa-visual` com três imagens: adicionar, mover, escalar, girar, reordenar, remover, em janela de 1280 px e em 390 px com toque emulado; nenhuma camada salta ao iniciar o arrasto.
 
 ## Open questions
-- Recorte interno por camada (cortar um pedaço da foto antes de posicionar) faz falta já, ou basta o recorte pelo contorno da capa? Este item assume que basta o contorno.
+- Recorte interno por camada (cortar um pedaço da foto antes de posicionar) faz falta já, ou basta o recorte pelo contorno da capa? Este item assume que basta o contorno. → Faz falta já: recorte por camada entra nesta rodada (campo `crop` na camada, em frações da imagem original; modo de recorte no palco com "Imagem inteira", "Cancelar" e "Aplicar recorte"; ação "Recortar" em cada camada; um passo de desfazer ao aplicar) (owner, 2026-11-11)
 - Desfazer/refazer entra nesta rodada? → Sim, como item próprio, P-007 (owner, 2026-11-11)
-- Cor da linha da margem de segurança? Não está nas pranchas aprovadas; este item assume `--color-warn` (`#FFD447`) tracejado, para não se confundir com a sangria (`--color-guide`).
+- Cor da linha da margem de segurança? Não está nas pranchas aprovadas; este item assume `--color-warn` (`#FFD447`) tracejado, para não se confundir com a sangria (`--color-guide`). Medido (2026-11-11): `#FFD447` sobre o fundo branco padrão da capa tem contraste 1,42:1, a linha some; ela é desenhada dentro da capa, por cima da arte. Precisa de um traço escuro por baixo (como o recorte da câmera nas pranchas: fundo `#102B26`, borda branca). → Tracejado amarelo `#FFD447` sobre um traço escuro `#102B26`; o mesmo para as guias de encaixe (owner, 2026-11-11)

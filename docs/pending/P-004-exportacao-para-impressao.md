@@ -38,11 +38,11 @@ A POC não gera arquivo nenhum: o resultado existe só no canvas de 400×800 px 
 - `index.html`, `css/app.css` — conteúdo da aba Exportar
 - `tests/png-dpi.test.js` (novo) — o PNG gerado continua válido (assinatura, ordem dos chunks, CRC) e lê o DPI pedido; o mesmo para JPEG
 - `tests/export-name.test.js` (novo) — nome do arquivo com e sem identificação do pedido (acentos, espaços, símbolos, vazio)
-- `tests/geometry.test.js` — tamanho em pixels (ex.: 71,6 mm + 2 mm de sangria por lado a 300 DPI = 893 px)
+- `tests/geometry.test.js` — tamanho em pixels (ex.: 71,6 mm + 2 mm de sangria por lado a 300 DPI = 893 px; 147,6 + 4 = 151,6 mm = 1791 px; 300 DPI = 11811 px/m) [medido com `Math.round(mm / 25.4 * dpi)`; bate com `docs/design/Exportar.dc.html`]
 
 ## Code references
-- `setup` `js/p5.js:20` — canvas fixo de 400×800 px (`js/p5.js:21`), sem relação com medida física; a exportação calcula o tamanho a partir do modelo
-- `draw` `js/p5.js:33` — único render existente, para a tela; a exportação é um segundo destino do mesmo desenho
+- `setup` `js/p5.js:20` — canvas fixo de 400×800 px (`js/p5.js:21`), sem relação com medida física; a exportação calcula o tamanho a partir do modelo [code js/p5.js:20-21]
+- `draw` `js/p5.js:33` — único render existente, para a tela; a exportação é um segundo destino do mesmo desenho [code js/p5.js:33-36]
 
 ## Other references
 - P-002 § Strategy 1 — `case` e `bleed` do modelo; P-003 § Strategy 1 — camadas em mm.
@@ -50,6 +50,6 @@ A POC não gera arquivo nenhum: o resultado existe só no canvas de 400×800 px 
 - Aceitação: `npm test` passa; um PNG exportado a 300 DPI, aberto com `file` ou `python3 -c` (PIL não é requisito: ler o `pHYs` direto dos bytes), tem as dimensões em pixels esperadas e 11811 pixels por metro; a composição exportada bate com a do palco (mesma posição, escala e rotação das camadas).
 
 ## Open questions
-- Qual é a impressora e o processo? O pedido fala em "impressora matricial", que não imprime em capa; capas costumam ser feitas em impressora UV ou por sublimação. A resposta define os padrões: sublimação pede espelhamento ligado; UV, não. Este item assume saída genérica (PNG, 300 DPI, sem espelhar).
-- O programa da impressora exige algum formato ou resolução específicos (TIFF, PDF, 600 ou 720 DPI)? Este item assume que PNG ou JPEG bastam.
-- O arquivo deve sair no tamanho de uma capa, ou montado numa folha/berço com várias capas (ex.: A4 com posições fixas)? Este item assume uma capa por arquivo.
+- Qual é a impressora e o processo? O pedido fala em "impressora matricial", que não imprime em capa; capas costumam ser feitas em impressora UV ou por sublimação. A resposta define os padrões: sublimação pede espelhamento ligado; UV, não. Este item assume saída genérica (PNG, 300 DPI, sem espelhar). → Saída genérica: PNG, 300 DPI, sem espelhar por padrão (owner, 2026-11-11)
+- O programa da impressora exige algum formato ou resolução específicos (TIFF, PDF, 600 ou 720 DPI)? Este item assume que PNG ou JPEG bastam. → PNG ou JPEG bastam (owner, 2026-11-11)
+- O arquivo deve sair no tamanho de uma capa, ou montado numa folha/berço com várias capas (ex.: A4 com posições fixas)? Este item assume uma capa por arquivo. → Uma capa por arquivo (owner, 2026-11-11)

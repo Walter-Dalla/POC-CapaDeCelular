@@ -17,7 +17,7 @@ Este item entrega a base em que P-002 a P-005 se apoiam: estrutura de arquivos, 
 ## Strategy
 1. Continuar **sem build e sem dependências de runtime**: HTML + CSS + JavaScript em ES modules, Canvas 2D nativo. p5.js sai (o app precisa de transformações por camada, gestos de toque e render fora da tela em alta resolução; p5 não ajuda em nenhum dos três e pesa ~1 MB).
    - Alternativa descartada: Vite + framework. Daria componentes, mas exige build e pipeline para um app de uma tela; o deploy no GitHub Pages fica mais simples servindo os arquivos como estão.
-2. Criar `package.json` mínimo, sem dependências: `"type": "module"`, `"private": true`, scripts `test` (`node --test`) e `check` (`node --check` em cada `js/**/*.js`). Serve só para os checks; o site não precisa de `npm install`.
+2. Criar `package.json` mínimo, sem dependências: `"type": "module"`, `"private": true`, scripts `test` (`node --test`) e `check` (`node --check` em cada `js/**/*.js`; o `node --check` confere um arquivo por chamada, então o script percorre os arquivos: `find js tests -name "*.js" -print0 | xargs -0 -n1 node --check`, que sai 0 com tudo certo e 123 com erro de sintaxe [medido em Node 22.23.2]). Serve só para os checks; o site não precisa de `npm install`.
 3. Estrutura:
    - `index.html` — casca da página; um `<script type="module" src="js/main.js">`.
    - `css/tokens.css` — tokens de design; `css/app.css` — layout e componentes.
@@ -38,29 +38,29 @@ Este item entrega a base em que P-002 a P-005 se apoiam: estrutura de arquivos, 
 9. Remover `js/p5.js` e a tag da CDN. `phone.png`, `mike.png` e `route.json` ficam para P-005.
 
 ## Locations
-- `index.html:5` — sai a CDN do p5
-- `index.html:7` — sai `js/p5.js`; entra `js/main.js` como módulo
-- `index.html:9-13` — `<main>` vazio vira a casca (barra, palco, painel com abas)
-- `index.css` — substituído por `css/tokens.css` e `css/app.css`
-- `js/p5.js` — removido
+- `index.html:5` — sai a CDN do p5 [code index.html:5]
+- `index.html:7` — sai `js/p5.js`; entra `js/main.js` como módulo [code index.html:7]
+- `index.html:9-13` — `<body>` com o `<main>` vazio (`index.html:10-12`) vira a casca (barra, palco, painel com abas) [code index.html:9-13]
+- `index.css` — removido; entram `css/tokens.css` e `css/app.css`. Hoje o arquivo nem é carregado: `index.html` não tem `<link rel="stylesheet">` [code index.html:4-8]
+- `js/p5.js` — removido [code js/p5.js:1-75, o arquivo inteiro]
 - `package.json` (novo), `js/main.js` (novo), `js/state.js` (novo), `js/geometry.js` (novo), `tests/geometry.test.js` (novo)
 
 ## Code references
 Sem `.codegraph/` no repo; linhas conferidas com `grep -n`.
-- `configs` `js/p5.js:2` — estado global atual (posição de uma imagem); substituído por `js/state.js`
-- `preload` `js/p5.js:14` — carrega as imagens por URL absoluta (`js/p5.js:16-17`); removido
-- `setup` `js/p5.js:20` — canvas fixo 400×800 (`js/p5.js:21`) e botão de upload; removido
-- `draw` `js/p5.js:33` — desenha imagem e moldura a cada quadro; o render novo é sob demanda (quando o estado muda)
-- `mouseDragged` `js/p5.js:53` — arrasto que recentraliza no mouse; substituído em P-003
-- `loadUserImage` `js/p5.js:63`, `handleUserImageLoad` `js/p5.js:69` — upload de uma imagem; substituídos em P-003
+- `configs` `js/p5.js:2` — estado global atual (posição de uma imagem); substituído por `js/state.js` [code js/p5.js:2-12]
+- `preload` `js/p5.js:14` — carrega as imagens por URL absoluta (`js/p5.js:16-17`); removido [code js/p5.js:14-18]
+- `setup` `js/p5.js:20` — canvas fixo 400×800 (`js/p5.js:21`) e botão de upload (`js/p5.js:26-28`); removido [code js/p5.js:20-31]
+- `draw` `js/p5.js:33` — desenha imagem e moldura a cada quadro; o render novo é sob demanda (quando o estado muda) [code js/p5.js:33-51]
+- `mouseDragged` `js/p5.js:53` — arrasto que recentraliza no mouse; substituído em P-003 [code js/p5.js:53-60]
+- `loadUserImage` `js/p5.js:63`, `handleUserImageLoad` `js/p5.js:69` — upload de uma imagem; substituídos em P-003 [code js/p5.js:63-75]
 
 ## Other references
 - Design de referência (canvas "Leonel Games — Estúdio de Capas"): https://claude.ai/artifact/A8UtnR3rUShFE8aGaVRuKT — cinco pranchas: Modelo, Imagens, Exportar, celular (gaveta inferior) e tokens/componentes. É a fonte dos tokens de `css/tokens.css` e do layout dos passos 6 e 7; onde este item e o design divergirem, vale o design. Tema escuro (verde) é o principal; o tema claro do passo 7 deixa de ser exigido. Fontes: Fredoka (títulos), Nunito Sans (texto), Silkscreen (rótulos), via Google Fonts, no lugar da pilha do sistema.
 - `CLAUDE.md` — mapa atual do repo; fica desatualizado depois deste item.
-- `.claude/profile/implementation.md` § Commands — `typecheck: node --check js/p5.js` deixa de valer; passa a ser `npm run check`, e a suíte `npm test`. O perfil é arquivo protegido: quem atualiza é o dono (`/wh:profile implementation`).
+- `.claude/profile/implementation.md` § Commands — `typecheck: node --check js/p5.js` deixa de valer; passa a ser `npm run check`, e a suíte `npm test`. O perfil é arquivo protegido: o dono autorizou a primeira raia desta tarefa a trocar as duas chaves de § Commands (`suite: npm test`, `typecheck: npm run check`) (owner, 2026-11-11).
 - Aceitação: `npm test` e `npm run check` passam; a página abre por `python3 -m http.server` sem erro no console, com a casca e as três abas, em 1280 px e em 390 px de largura, nos temas claro e escuro.
 
 ## Open questions
 - Nome do produto na barra superior? → Marca da contratante, "Leonel Games", com o subtítulo "Estúdio de capas" (owner, 2026-11-11)
 - Cor de acento da marca? → Paleta tirada da arte da Leonel Games: base verde-petróleo `#24564C`, texto branco, ação principal `#FFB52E`, seleção `#FF5CA8`; tokens completos na prancha "Tokens e componentes" do design (owner, 2026-11-11)
-- O logotipo oficial da Leonel Games (arquivo do leão) será fornecido? No design, um círculo com o degradê da marca ocupa o lugar dele.
+- O logotipo oficial da Leonel Games (arquivo do leão) será fornecido? No design, um círculo com o degradê da marca ocupa o lugar dele. → Não agora: fica o círculo em degradê, com um único ponto de troca (`.brand__mark`) (owner, 2026-11-11)
