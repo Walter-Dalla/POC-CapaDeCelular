@@ -585,3 +585,13 @@
 .stage-canvas--nesw {
   cursor: nesw-resize;
 }
+
+/* Footer of every tab panel: the next-step button stays at its bottom edge */
+.panel__footer {
+  position: sticky;
+  bottom: 0;
+  flex-shrink: 0;
+  padding: var(--space-16) var(--space-20);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
