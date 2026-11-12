@@ -6,6 +6,7 @@ import { createRegistry, defaultDecode } from './images.js';
 import { newId } from './layers.js';
 import { mountGestures } from './gestures.js';
 import { mountHistoryControls } from './controls.js';
+import { changesDraft, createAutosave, openDraftDb, saveDraft, serializeDraft } from './draft.js';
 import { mount as mountModel } from './panels/model.js';
 import { mount as mountImages } from './panels/images.js';
 import { mount as mountExport } from './panels/export.js';
@@ -330,6 +331,52 @@ function reportBootFailure(error) {
   }
 }
 
+export const DRAFT_FAILED = {
+  kind: 'warn',
+  strong: 'Não foi possível salvar o rascunho neste navegador',
+  text: 'Seu trabalho continua aberto, mas será perdido ao fechar a página.',
+  once: 'draft-failed',
+};
+
+// Draft kept in this browser: the database (null when IndexedDB is missing or
+// refused), whether the last attempt to open or save worked, and the autosave.
+async function openDraft(ctx) {
+  const draft = { db: null, available: false, autosave: null };
+  const fail = (error) => {
+    console.error(error);
+    draft.available = false;
+    ctx.notices.show(DRAFT_FAILED);
+  };
+  try {
+    draft.db = await openDraftDb();
+    draft.available = true;
+  } catch (error) {
+    fail(error);
+  }
+  draft.autosave = createAutosave({
+    async save() {
+      if (!draft.db) return;
+      try {
+        await saveDraft(draft.db, serializeDraft(state.getState()), (id) => ctx.images.getBlob(id));
+        draft.available = true;
+      } catch (error) {
+        fail(error);
+      }
+    },
+  });
+  return draft;
+}
+
+// Saves after every change of what the draft holds, and at once when the page is hidden.
+function startAutosave(draft) {
+  state.subscribe((next, prev) => {
+    if (changesDraft(next, prev)) draft.autosave.touch();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') draft.autosave.flush();
+  });
+}
+
 export async function boot() {
   const drawer = createDrawer();
   const ctx = {
@@ -366,6 +413,13 @@ export async function boot() {
     ctx.notices.show({ kind: 'error', strong: 'Não foi possível carregar os modelos.', text: 'Use o modelo personalizado.' });
   }
 
+  let draft = null;
+  try {
+    draft = await openDraft(ctx);
+  } catch (error) {
+    console.error(error);
+  }
+
   mountAll(ctx, [
     () => linkTabs(ctx),
     () => mountStage(ctx),
@@ -374,6 +428,7 @@ export async function boot() {
     () => mountModel(byId('panel-model'), ctx),
     () => mountImages(byId('panel-images'), ctx),
     () => mountExport(byId('panel-export'), ctx),
+    () => draft && startAutosave(draft),
   ]);
   return ctx;
 }
