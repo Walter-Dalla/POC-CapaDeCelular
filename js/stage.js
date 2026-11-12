@@ -161,6 +161,55 @@ function readTokens() {
   return tokens;
 }
 
+const FULL_CROP = Object.freeze({ x: 0, y: 0, width: 1, height: 1 });
+
+// Point (lx, ly) of a rotated frame turned into an offset on the cover.
+function rotateOffset(lx, ly, rotation) {
+  const a = (rotation * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  return { x: lx * cos - ly * sin, y: lx * sin + ly * cos };
+}
+
+// Rectangle in mm on the cover of the whole original image of a layer: the
+// layer's scale and rotation, placed so that its cropped part stays where
+// the layer shows it.
+export function cropFrame(layer) {
+  const crop = layer.crop ?? FULL_CROP;
+  const width = layer.width / crop.width;
+  const height = (width * layer.naturalHeight) / layer.naturalWidth;
+  const offset = rotateOffset(
+    (crop.x + crop.width / 2 - 0.5) * width,
+    (crop.y + crop.height / 2 - 0.5) * height,
+    layer.rotation,
+  );
+  return { cx: layer.cx - offset.x, cy: layer.cy - offset.y, width, height, rotation: layer.rotation };
+}
+
+// Rectangle in mm on the cover of a crop draft (fractions of the original image).
+export function cropRectOnCover(layer, draft) {
+  const frame = cropFrame(layer);
+  const offset = rotateOffset(
+    (draft.x + draft.width / 2 - 0.5) * frame.width,
+    (draft.y + draft.height / 2 - 0.5) * frame.height,
+    frame.rotation,
+  );
+  return {
+    cx: frame.cx + offset.x,
+    cy: frame.cy + offset.y,
+    width: draft.width * frame.width,
+    height: draft.height * frame.height,
+    rotation: frame.rotation,
+  };
+}
+
+// The layer being cropped, or null when crop mode names no existing layer.
+function cropLayerOf(state) {
+  const id = state.ui.cropLayerId;
+  if (id === null || id === undefined) return null;
+  return state.project.layers.find((layer) => layer.id === id) ?? null;
+}
+
 // Ordered steps of the edit view for a state: the drawing code follows it.
 export function editDrawPlan(state, model) {
   const { project, ui } = state;
@@ -173,7 +222,8 @@ export function editDrawPlan(state, model) {
   if (ui.guides?.v) plan.push('guide-v');
   if (ui.guides?.h) plan.push('guide-h');
   const selected = project.layers.some((layer) => layer.id === ui.selectedLayerId);
-  if (selected && ui.cropLayerId === null) plan.push('selection');
+  if (cropLayerOf(state)) plan.push('crop');
+  else if (selected && ui.cropLayerId === null) plan.push('selection');
   return plan;
 }
 
@@ -282,7 +332,9 @@ function drawSelection(g, layer, scale, tokens) {
 // and lengths in mm × scale, step by step as editDrawPlan lists them.
 function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
   const { project, ui } = state;
-  const layers = project.layers;
+  const cropLayer = cropLayerOf(state);
+  // The layer being cropped is drawn on its own by the crop step.
+  const layers = cropLayer ? project.layers.filter((layer) => layer !== cropLayer) : project.layers;
   const steps = {
     shadow() {
       g.save();
@@ -370,6 +422,22 @@ function drawEdit(g, { state, model, scale, tokens, getBitmap }) {
     selection() {
       const layer = layers.find((item) => item.id === ui.selectedLayerId);
       drawSelection(g, layer, scale, tokens);
+    },
+    crop() {
+      const frame = cropFrame(cropLayer);
+      const whole = { ...cropLayer, cx: frame.cx, cy: frame.cy, width: frame.width, crop: FULL_CROP };
+      const draft = cropRectOnCover(cropLayer, ui.cropDraft ?? cropLayer.crop ?? FULL_CROP);
+      g.save();
+      g.globalAlpha = OUTSIDE_ALPHA;
+      drawLayers(g, [whole], getBitmap, scale);
+      g.restore();
+      g.save();
+      g.beginPath();
+      traceRect(g, draft, scale);
+      g.clip();
+      drawLayers(g, [whole], getBitmap, scale);
+      g.restore();
+      drawFrame(g, draft, scale, tokens);
     },
   };
   for (const step of editDrawPlan(state, model)) steps[step]();
@@ -508,6 +576,7 @@ export function mountStage(ctx) {
   const legend = byId('stage-legend');
   const toolbar = byId('stage-toolbar');
   const caption = byId('stage-caption');
+  const cropBar = byId('crop-bar');
   const g = canvas.getContext('2d');
   const tokens = readTokens();
   let layout = { scale: 1, originX: 0, originY: 0 };
@@ -526,7 +595,9 @@ export function mountStage(ctx) {
     canvas.setAttribute('aria-label', stageLabel(model, state.project.layers.length));
     empty.hidden = view !== 'empty';
     const preview = view === 'preview';
-    toolbar.hidden = preview;
+    const cropping = view === 'edit' && cropLayerOf(state) !== null;
+    toolbar.hidden = preview || cropping;
+    cropBar.hidden = !cropping;
     caption.hidden = !preview;
     if (preview) caption.textContent = previewCaption(state.exportOptions, model);
   }
