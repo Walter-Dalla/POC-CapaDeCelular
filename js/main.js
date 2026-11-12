@@ -2,6 +2,9 @@
 import * as state from './state.js';
 import { CUSTOM_MODEL_ID, loadCatalog, resolveModel } from './catalog.js';
 import { mountStage } from './stage.js';
+import { createRegistry, defaultDecode } from './images.js';
+import { newId } from './layers.js';
+import { mountGestures } from './gestures.js';
 import { mount as mountModel } from './panels/model.js';
 import { mount as mountImages } from './panels/images.js';
 import { mount as mountExport } from './panels/export.js';
@@ -122,6 +125,7 @@ function createTabs(drawer) {
 
   return {
     show: (name) => show(name),
+    current: () => current,
     onChange(fn) {
       listeners.push(fn);
     },
@@ -277,14 +281,52 @@ export function bootProject(catalogOk) {
   return catalogOk ? {} : { modelId: CUSTOM_MODEL_ID };
 }
 
-// Keeps the step tabs and `ui.tab` of the state in step, in both directions.
-function linkTabs(ctx) {
-  ctx.tabs.onChange((tab) => ctx.state.setUi({ tab }));
-  ctx.state.subscribe((next, prev) => {
-    if (next.ui.tab !== prev.ui.tab) ctx.tabs.show(next.ui.tab);
+// Keeps the step tabs and `ui.tab` of the state in step, in both directions:
+// a tab change sets `ui.tab`, and a change of `ui.tab` shows its tab once (a
+// change that came from the tabs shows nothing).
+export function linkTabs(ctx) {
+  let shown = ctx.tabs.current();
+  ctx.tabs.onChange((tab) => {
+    shown = tab;
+    ctx.state.setUi({ tab });
+  });
+  ctx.state.subscribe((next) => {
+    if (next.ui.tab === shown) return;
+    shown = next.ui.tab;
+    ctx.tabs.show(shown);
   });
   const { tab } = ctx.state.getState().ui;
-  if (byId(`tab-${tab}`).getAttribute('aria-selected') !== 'true') ctx.tabs.show(tab);
+  if (tab !== shown) {
+    shown = tab;
+    ctx.tabs.show(tab);
+  }
+}
+
+export const BOOT_ERROR = { kind: 'error', strong: 'Não foi possível iniciar o editor.', text: 'Recarregue a página.' };
+
+// Runs each mount on its own, so one that throws leaves the others mounted;
+// any failure shows the boot error notice once.
+function mountAll(ctx, mounts) {
+  let failed = false;
+  for (const mount of mounts) {
+    try {
+      mount();
+    } catch (error) {
+      failed = true;
+      console.error(error);
+    }
+  }
+  if (failed) ctx.notices.show(BOOT_ERROR);
+}
+
+// Last resort when boot() itself rejects: a notice of its own, else the console.
+function reportBootFailure(error) {
+  console.error(error);
+  try {
+    createNotices().show(BOOT_ERROR);
+  } catch (noticeError) {
+    console.error(noticeError);
+  }
 }
 
 export async function boot() {
@@ -293,7 +335,7 @@ export async function boot() {
     state,
     catalog: null,
     model: null,
-    images: null,
+    images: createRegistry({ decode: defaultDecode, newId }),
     stage: null,
     tabs: createTabs(drawer),
     notices: createNotices(),
@@ -323,12 +365,15 @@ export async function boot() {
     ctx.notices.show({ kind: 'error', strong: 'Não foi possível carregar os modelos.', text: 'Use o modelo personalizado.' });
   }
 
-  linkTabs(ctx);
-  mountStage(ctx);
-  mountModel(byId('panel-model'), ctx);
-  mountImages(byId('panel-images'), ctx);
-  mountExport(byId('panel-export'), ctx);
+  mountAll(ctx, [
+    () => linkTabs(ctx),
+    () => mountStage(ctx),
+    () => mountGestures(ctx),
+    () => mountModel(byId('panel-model'), ctx),
+    () => mountImages(byId('panel-images'), ctx),
+    () => mountExport(byId('panel-export'), ctx),
+  ]);
   return ctx;
 }
 
-if (typeof document !== 'undefined') boot();
+if (typeof document !== 'undefined') boot().catch(reportBootFailure);

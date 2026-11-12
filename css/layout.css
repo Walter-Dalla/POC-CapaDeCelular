@@ -560,3 +560,28 @@
   background: var(--brand-purple);
   opacity: 0.4;
 }
+
+/* Pointer on the stage canvas: the page does not pan or zoom under a finger; the cursor follows what is under the pointer */
+.stage-canvas {
+  touch-action: none;
+}
+
+.stage-canvas--move {
+  cursor: move;
+}
+
+.stage-canvas--grab {
+  cursor: grab;
+}
+
+.stage-canvas--grabbing {
+  cursor: grabbing;
+}
+
+.stage-canvas--nwse {
+  cursor: nwse-resize;
+}
+
+.stage-canvas--nesw {
+  cursor: nesw-resize;
+}
