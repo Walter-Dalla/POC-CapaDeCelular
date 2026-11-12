@@ -5,6 +5,8 @@
 
 const FULL_CROP = Object.freeze({ x: 0, y: 0, width: 1, height: 1 });
 const DUPLICATE_OFFSET_MM = 5;
+const MIN_WIDTH_MM = 5;
+const MAX_WIDTH_MM = 2000;
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 // A new unique id. crypto.randomUUID is missing on plain-http addresses, so
@@ -132,4 +134,62 @@ export function lowerLayer(project, id) {
 export function setBackground(project, color) {
   if (typeof color !== 'string' || !COLOR_PATTERN.test(color)) return project;
   return { ...project, background: color.toUpperCase() };
+}
+
+// Half sizes of the case plus bleed rectangle, the area a layer centre may
+// occupy.
+export function layerBounds(model, bleedMm) {
+  return {
+    halfWidth: model.case.width / 2 + bleedMm,
+    halfHeight: model.case.height / 2 + bleedMm,
+  };
+}
+
+// Moves the layer centre to (cx, cy), clamped into bounds.
+export function moveLayer(project, id, cx, cy, bounds) {
+  return updateLayer(project, id, (layer) => ({ ...layer, ...clampCentre(cx, cy, bounds) }));
+}
+
+// Moves the layer centre by (dx, dy), clamped into bounds.
+export function moveLayerBy(project, id, dx, dy, bounds) {
+  return updateLayer(project, id, (layer) => ({
+    ...layer,
+    ...clampCentre(layer.cx + dx, layer.cy + dy, bounds),
+  }));
+}
+
+function clampWidth(width) {
+  return clamp(width, MIN_WIDTH_MM, MAX_WIDTH_MM);
+}
+
+// Sets the width of the visible part, clamped to 5–2000 mm; the centre stays.
+export function setLayerWidth(project, id, width) {
+  return updateLayer(project, id, (layer) => ({ ...layer, width: clampWidth(width) }));
+}
+
+// Multiplies the width by factor, clamped to 5–2000 mm; the centre stays.
+export function scaleLayer(project, id, factor) {
+  return updateLayer(project, id, (layer) => ({ ...layer, width: clampWidth(layer.width * factor) }));
+}
+
+// Angle in degrees brought into (−180, 180].
+export function normalizeRotation(degrees) {
+  const turn = ((degrees % 360) + 360) % 360;
+  return (turn > 180 ? turn - 360 : turn) + 0;
+}
+
+export function setRotation(project, id, degrees) {
+  return updateLayer(project, id, (layer) => ({ ...layer, rotation: normalizeRotation(degrees) }));
+}
+
+export function rotateLayerBy(project, id, degrees) {
+  return updateLayer(project, id, (layer) => ({
+    ...layer,
+    rotation: normalizeRotation(layer.rotation + degrees),
+  }));
+}
+
+// Angle rounded to the nearest multiple of step, in (−180, 180].
+export function snapRotation(degrees, step = 15) {
+  return normalizeRotation(Math.round(degrees / step) * step);
 }
