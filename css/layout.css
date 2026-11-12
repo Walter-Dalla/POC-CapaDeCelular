@@ -271,6 +271,16 @@
   color: var(--color-on-cover-2);
 }
 
+/* Empty state over a dark cover background */
+.stage-empty--on-dark {
+  color: var(--color-text);
+}
+
+.stage-empty--on-dark .stage-empty__kicker,
+.stage-empty--on-dark .stage-empty__hint {
+  color: var(--color-text-2);
+}
+
 /* Legend under the cover */
 .stage-legend {
   display: flex;

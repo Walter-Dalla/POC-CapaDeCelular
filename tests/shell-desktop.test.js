@@ -160,6 +160,18 @@ test('layout: header, stage, panel side by side from 900px', () => {
   assert.match(ruleOf(layout, '[hidden]'), /display: none !important;/);
 });
 
+test('empty state: text for a white cover, with a dark-cover modifier', () => {
+  assert.match(ruleOf(layout, '.stage-empty'), /color: var\(--color-bg\);/);
+  assert.doesNotMatch(ruleOf(layout, '.stage-empty'), /background/);
+  assert.match(ruleOf(layout, '.stage-empty__kicker'), /color: var\(--color-brand\);/);
+  assert.match(ruleOf(layout, '.stage-empty__hint'), /color: var\(--color-on-cover-2\);/);
+  assert.match(ruleOf(layout, '.stage-empty--on-dark'), /color: var\(--color-text\);/);
+  assert.match(
+    layout,
+    /\.stage-empty--on-dark \.stage-empty__kicker,\s*\.stage-empty--on-dark \.stage-empty__hint\s*\{\s*color: var\(--color-text-2\);/,
+  );
+});
+
 test('layout uses no colour literal', () => {
   assert.doesNotMatch(layout, /#[0-9a-fA-F]{3,8}\b/);
   assert.doesNotMatch(layout, /rgba?\(/);
