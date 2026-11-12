@@ -18,6 +18,8 @@ Decidir cada ponto; os que mudarem viram um item pequeno de CSS:
 4. Espaçamentos sem token foram arredondados para o token mais próximo (22→20, 18→16, 14/10→12 px). Sem quebra visível; criar tokens novos só se o dono quiser o valor exato.
 5. O campo "Pedido ou cliente" ficou entre as opções e a seção ARQUIVO FINAL (a prancha não o posiciona).
 6. Tamanhos de fonte e algumas alturas estão como literais em px nos CSS de painel (não há token de tipografia).
+7. Na primeira tela do celular (390 px), a gaveta do Modelo abre expandida e a capa não é desenhada: o palco mostra só a barra de ferramentas desativada e a legenda de uma capa que não está na tela. Esconder barra e legenda enquanto a capa não é desenhada, ou abrir o Modelo recolhido em telas baixas.
+8. Em celulares baixos (375 × 667, 360 × 740) o estado vazio mostra só "PRESS START", o título e o botão "Adicionar imagens"; a lista de passos e a última linha saem por falta de espaço.
 
 ## Locations
 - `css/layout.css`, `css/panel-model.css`, `css/panel-images.css`, `css/panel-export.css` — onde cada ajuste cairia
@@ -34,3 +36,4 @@ Decidir cada ponto; os que mudarem viram um item pequeno de CSS:
 - Barra de ferramentas na aba Modelo sem camadas: esconder ou manter?
 - Selo "Medidas aproximadas": aceitar a quebra, ou mover para baixo da medida?
 - Ações em todos os cartões de camada, ou só no selecionado como na prancha?
+- Primeira tela do celular: esconder barra e legenda com a gaveta aberta, ou abrir o Modelo recolhido?
