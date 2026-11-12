@@ -4,7 +4,15 @@
 // of the cover; screen pixels only set the size of the touch targets.
 
 import { layerRect, pointInRotatedRect, selectionHandles, snapToZero } from './geometry.js';
-import { getLayer, layerBounds, moveLayer } from './layers.js';
+import {
+  getLayer,
+  layerBounds,
+  moveLayer,
+  normalizeRotation,
+  setLayerWidth,
+  setRotation,
+  snapRotation,
+} from './layers.js';
 import { stageView } from './stage.js';
 
 // Distance in screen px from a handle's centre that still hits it (44 px target).
@@ -46,6 +54,34 @@ export function dragMove(start, pointer) {
   const cx = snapToZero(start.cx + pointer.x - start.x, SNAP_MM);
   const cy = snapToZero(start.cy + pointer.y - start.y, SNAP_MM);
   return { cx, cy, guides: { v: cx === 0, h: cy === 0 } };
+}
+
+function degrees(radians) {
+  return (radians * 180) / Math.PI;
+}
+
+// Direction in degrees, clockwise on screen, of the vector from a to b.
+function angleOf(a, b) {
+  return degrees(Math.atan2(b.y - a.y, b.x - a.x));
+}
+
+// New width of a layer scaled by a corner handle: the start width times the
+// pointer's distance from the centre over the grab point's distance from it.
+// The centre stays and the proportion is kept by the layer's own aspect.
+export function scaleFromHandle(start, pointer) {
+  const centre = { x: start.cx, y: start.cy };
+  const grabbed = distance(centre, start);
+  if (grabbed === 0) return start.width;
+  return (start.width * distance(centre, pointer)) / grabbed;
+}
+
+// New rotation of a layer turned by the rotate handle: the start rotation plus
+// the angle the pointer swept around the centre since the grab point; with
+// snap, rounded to the nearest 15°.
+export function rotateFromHandle(start, pointer, snap) {
+  const centre = { x: start.cx, y: start.cy };
+  const rotation = normalizeRotation(start.rotation + angleOf(centre, pointer) - angleOf(centre, start));
+  return snap ? snapRotation(rotation, 15) : rotation;
 }
 
 // Wires the pointer on the stage canvas. Does nothing without the state or the stage.
@@ -99,18 +135,29 @@ export function mountGestures(ctx) {
     }
     state.setUi({ selectedLayerId: hit.layerId });
     const layer = getLayer(project, hit.layerId);
-    const start = { cx: layer.cx, cy: layer.cy, x: point.x, y: point.y };
-    if (hit.part === 'body') {
-      gesture = { kind: 'drag', pointerId, layerId: layer.id, start, moved: false };
-      setCursor('grabbing');
-    }
+    const start = {
+      cx: layer.cx,
+      cy: layer.cy,
+      width: layer.width,
+      rotation: layer.rotation,
+      x: point.x,
+      y: point.y,
+    };
+    const kind = hit.part === 'body' ? 'drag' : hit.part === 'rotate' ? 'rotate' : 'scale';
+    gesture = { kind, pointerId, layerId: layer.id, start, moved: false };
+    setCursor(kind === 'scale' ? CURSORS[hit.part] : 'grabbing');
   }
 
   function moveGesture(event, point) {
-    if (gesture.kind === 'drag') {
-      const next = dragMove(gesture.start, point);
-      change((project) => moveLayer(project, gesture.layerId, next.cx, next.cy, bounds()));
+    const { kind, layerId, start } = gesture;
+    if (kind === 'drag') {
+      const next = dragMove(start, point);
+      change((project) => moveLayer(project, layerId, next.cx, next.cy, bounds()));
       state.setUi({ guides: next.guides });
+    } else if (kind === 'scale') {
+      change((project) => setLayerWidth(project, layerId, scaleFromHandle(start, point)));
+    } else if (kind === 'rotate') {
+      change((project) => setRotation(project, layerId, rotateFromHandle(start, point, event.shiftKey)));
     }
   }
 
