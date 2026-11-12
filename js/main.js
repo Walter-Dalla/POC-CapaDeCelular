@@ -5,6 +5,7 @@ import { mountStage } from './stage.js';
 import { createRegistry, defaultDecode } from './images.js';
 import { newId } from './layers.js';
 import { mountGestures } from './gestures.js';
+import { mountHistoryControls } from './controls.js';
 import { mount as mountModel } from './panels/model.js';
 import { mount as mountImages } from './panels/images.js';
 import { mount as mountExport } from './panels/export.js';
@@ -369,6 +370,7 @@ export async function boot() {
     () => linkTabs(ctx),
     () => mountStage(ctx),
     () => mountGestures(ctx),
+    () => mountHistoryControls(ctx),
     () => mountModel(byId('panel-model'), ctx),
     () => mountImages(byId('panel-images'), ctx),
     () => mountExport(byId('panel-export'), ctx),
