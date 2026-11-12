@@ -100,18 +100,33 @@ test('app.css: a disabled ghost button keeps a transparent background and a dimm
   assert.equal(cssValue('app.css', '.btn:disabled', 'background'), 'var(--color-border)');
 });
 
-// 7 buttons of 44px, the spacer and 7 gaps of 4px take 336px; the row of the
-// 400px panel is 400 - 1 (panel border) - 2 × 20 (panel padding) - 2 × 2
-// (selected card border) - 2 × 8 (card padding) = 339px.
+// 7 buttons of 44px and 6 gaps of 4px (the spacer hidden, Remover pushed by
+// its auto margin) take 332px; the row of the 400px panel with the 15px
+// scrollbar gutter is 400 - 1 (panel border) - 15 (gutter) - 2 × 16 (panel
+// padding) - 2 × 2 (selected card border) - 2 × 8 (card padding) = 332px.
 test('panel-images.css: from 900px the layer actions keep one row with a 4px gap', () => {
   const css = readFileSync(new URL('../css/panel-images.css', import.meta.url), 'utf8');
   const media = /@media \(min-width: 900px\) \{([\s\S]*?)\n\}/.exec(css);
   assert.ok(media, 'desktop media block');
   assert.match(media[1], /\.layer-card__actions \{[^}]*flex-wrap: nowrap;[^}]*gap: var\(--space-4\);/);
   assert.match(media[1], /\.layer-card \{[^}]*padding-inline: var\(--space-8\);/);
-  assert.ok(7 * 44 + 7 * 4 <= 400 - 1 - 2 * 20 - 2 * 2 - 2 * 8);
+  assert.ok(7 * 44 + 6 * 4 <= 400 - 1 - 15 - 2 * 16 - 2 * 2 - 2 * 8);
   // The 390px compact card keeps its own 4px gap.
   assert.match(css, /\.layer-card--compact \.layer-card__actions \{[^}]*gap: var\(--space-4\);/);
+});
+
+test('panel-images.css: from 900px the row keeps fitting when the panel scrolls', () => {
+  const css = readFileSync(new URL('../css/panel-images.css', import.meta.url), 'utf8');
+  const media = /@media \(min-width: 900px\) \{([\s\S]*?)\n\}/.exec(css)[1];
+  assert.match(media, /#panel-images \{[^}]*scrollbar-gutter: stable;/);
+  assert.match(media, /\.panel-images \{[^}]*padding-inline: var\(--space-16\);/);
+  assert.match(media, /\.layer-card__spacer \{[^}]*display: none;/);
+  assert.match(media, /\.layer-card__actions > \.btn--danger \{[^}]*margin-left: auto;/);
+  assert.match(media, /\.layer-card__actions > \.btn--icon \{[^}]*flex-shrink: 1;[^}]*min-width: 40px;/);
+  // A 17px scrollbar leaves 330px: the buttons shrink to (330 - 24) / 7 px, above the 40px floor.
+  assert.ok((330 - 6 * 4) / 7 >= 40);
+  // The hidden inputs of the panel are placed inside it, not against the page.
+  assert.match(css, /\n#panel-images \{[^}]*position: relative;/);
 });
 
 // Centred text taller than the room under the cutout would spill above the
