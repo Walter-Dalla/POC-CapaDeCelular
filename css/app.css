@@ -300,3 +300,215 @@ textarea:focus-visible,
 .swatch[aria-pressed="true"] {
   border: 3px solid var(--color-accent);
 }
+
+/* Step tabs */
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: 56px;
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--color-text-2);
+  font-family: var(--font-title);
+  font-weight: 500;
+  font-size: 16px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--color-accent);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.tab:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.tab__step {
+  font-family: var(--font-label);
+  font-size: 12px;
+  color: var(--color-text-3);
+}
+
+.tab[aria-selected="true"] .tab__step {
+  color: var(--color-accent);
+}
+
+/* Cards and boxed sections */
+.card {
+  border: 2px solid transparent;
+  border-radius: var(--radius-card);
+  background: var(--color-card);
+}
+
+.card--selected {
+  border-color: var(--color-accent);
+}
+
+.card--layer-selected {
+  border-color: var(--color-select);
+}
+
+.inset {
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-inset);
+}
+
+/* Badges */
+.badge--approx,
+.badge--selected {
+  display: inline-block;
+  padding: 3px var(--space-8);
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.badge--approx {
+  border: 1px solid var(--color-warn);
+  color: var(--color-warn-text);
+}
+
+.badge--selected {
+  background: var(--color-select);
+  color: var(--color-on-select);
+}
+
+/* Notices */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-icon);
+  font-size: 13px;
+}
+
+.notice--warn {
+  border-color: var(--color-warn);
+  background: var(--color-warn-bg);
+  color: var(--color-warn-text);
+}
+
+.notice--error {
+  border-color: var(--color-danger);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-text);
+}
+
+.notice--info {
+  border-color: var(--color-guide);
+  background: var(--color-stage);
+  color: var(--color-info-text);
+}
+
+.notice--floating {
+  border-radius: var(--radius-field);
+  box-shadow: var(--shadow-notice);
+}
+
+.notice__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.notice__close:focus-visible {
+  outline: 3px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+/* Text styles */
+.label-caps {
+  font-family: var(--font-label);
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--color-text-3);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-title);
+  font-weight: 600;
+  font-size: 17px;
+}
+
+.support {
+  font-size: 13px;
+  color: var(--color-text-3);
+}
+
+/* Brand: the mark is the single place where the official logo is swapped in */
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.brand__name {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.5px;
+  line-height: 1;
+}
+
+.brand__mark {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  margin: 0 2px;
+  border: 3px solid var(--color-text);
+  border-radius: 50%;
+  background: var(--brand-gradient);
+}
+
+.brand__sub {
+  font-family: var(--font-label);
+  font-size: 11px;
+  letter-spacing: 3px;
+  line-height: 1;
+}
+
+/* Dialog */
+.dialog {
+  max-width: 400px;
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.dialog::backdrop {
+  background: var(--color-backdrop);
+}
