@@ -1,7 +1,9 @@
 /* Imagens panel. Every colour, radius and spacing comes from css/tokens.css. */
 
-/* The tab panel scrolls; the footer with the next-step button stays at its bottom edge */
+/* The tab panel scrolls; the footer with the next-step button stays at its bottom edge.
+   It also holds its absolutely placed hidden inputs, which would otherwise stretch the page below a long list */
 #panel-images {
+  position: relative;
   display: flex;
   flex-direction: column;
 }
@@ -212,7 +214,17 @@
     display: none;
   }
 
-  /* The seven buttons fit one row of the 400px panel, Remover at the right end */
+  /* The space of the scrollbar is kept whether the list scrolls or not, so the cards keep their width */
+  #panel-images {
+    scrollbar-gutter: stable;
+  }
+
+  .panel-images {
+    padding-inline: var(--space-16);
+  }
+
+  /* The seven buttons fit one row of the 400px panel, Remover at the right end;
+     a wider scrollbar shrinks the buttons, never under 40px */
   .layer-card {
     padding-inline: var(--space-8);
   }
@@ -220,5 +232,18 @@
   .layer-card__actions {
     flex-wrap: nowrap;
     gap: var(--space-4);
+  }
+
+  .layer-card__spacer {
+    display: none;
+  }
+
+  .layer-card__actions > .btn--danger {
+    margin-left: auto;
+  }
+
+  .layer-card__actions > .btn--icon {
+    flex-shrink: 1;
+    min-width: 40px;
   }
 }

@@ -19,10 +19,14 @@ import { drawComposition, drawLayers } from './render.js';
 const STAGE_ROOM_MM = 6;
 // Space between the lowest top cutout and the empty-state text, in px.
 const EMPTY_TEXT_GAP_PX = 12;
-// Height in px of the case on screen under which the empty-state text is not
-// shown: the case of the open mobile drawer is a few px tall, the collapsed
-// drawer and desktop cases are over 500 px.
-export const EMPTY_TEXT_MIN_PX = 400;
+// Top padding of the empty state when no cutout pushes it down (--space-40 of
+// .stage-empty), in px.
+const EMPTY_PADDING_PX = 40;
+// Parts of the empty state, top to bottom, and the order in which they are
+// left out when the case is drawn too small for all of them. The add button
+// is never left out.
+export const EMPTY_PARTS = ['kicker', 'title', 'steps', 'add', 'hint'];
+const EMPTY_DROP_ORDER = ['hint', 'steps', 'title', 'kicker'];
 // Relative luminance under which the cover background counts as dark.
 const DARK_LUMINANCE = 0.4;
 const DEFAULT_SAFE_MARGIN_MM = 3;
@@ -133,10 +137,25 @@ export function emptyBox(layout, model) {
   };
 }
 
-// Whether the empty-state text shows over a case placed as emptyBox says:
-// on a case drawn too small it would only show clipped fragments.
-export function emptyTextFits(box) {
-  return box.height >= EMPTY_TEXT_MIN_PX;
+// Height in px left for the empty-state parts in a box from emptyBox: below
+// the top padding (or the cutout), down to 12 px above the case's bottom edge.
+export function emptyRoom(box) {
+  return Math.max(0, box.height - (box.paddingTop ?? EMPTY_PADDING_PX) - EMPTY_TEXT_GAP_PX);
+}
+
+// Parts of the empty state that are shown in `room` px, given the height of
+// each part (keys of EMPTY_PARTS) and the gap between parts: all of them when
+// they fit, else the last line, the steps, the title and the kicker are left
+// out in that order until the rest fits. An empty list when not even the add
+// button fits: the whole empty state is hidden.
+export function emptyParts(room, heights, gap) {
+  let parts = [...EMPTY_PARTS];
+  const total = () => parts.reduce((sum, part) => sum + heights[part], 0) + gap * (parts.length - 1);
+  for (const drop of EMPTY_DROP_ORDER) {
+    if (total() <= room) return parts;
+    parts = parts.filter((part) => part !== drop);
+  }
+  return total() <= room ? parts : [];
 }
 
 // Whether a #RGB or #RRGGBB colour has a relative luminance below 0.4.
@@ -614,6 +633,13 @@ export function mountStage(ctx) {
   const box = canvas.parentElement;
   const area = box.parentElement;
   const empty = byId('stage-empty');
+  const emptyNodes = {
+    kicker: empty.querySelector('.stage-empty__kicker'),
+    title: empty.querySelector('.stage-empty__title'),
+    steps: empty.querySelector('.stage-empty__steps'),
+    add: empty.querySelector('.stage-empty__add'),
+    hint: empty.querySelector('.stage-empty__hint'),
+  };
   const legend = byId('stage-legend');
   const toolbar = byId('stage-toolbar');
   const caption = byId('stage-caption');
@@ -643,13 +669,11 @@ export function mountStage(ctx) {
     if (preview) caption.textContent = previewCaption(state.exportOptions, model);
   }
 
+  // Places the empty state over the case, then shows the parts that fit in it
+  // (measured with every part shown, at the placed width).
   function placeEmpty(state, model) {
     if (empty.hidden) return;
     const placed = emptyBox(layout, model);
-    if (!emptyTextFits(placed)) {
-      empty.hidden = true;
-      return;
-    }
     empty.classList.add('stage-empty--placed');
     empty.classList.toggle('stage-empty--on-dark', isDarkColour(state.project.background));
     empty.style.left = `${placed.left}px`;
@@ -657,6 +681,16 @@ export function mountStage(ctx) {
     empty.style.width = `${placed.width}px`;
     empty.style.height = `${placed.height}px`;
     empty.style.paddingTop = placed.paddingTop === null ? '' : `${placed.paddingTop}px`;
+    for (const part of EMPTY_PARTS) emptyNodes[part].hidden = false;
+    const heights = {};
+    for (const part of EMPTY_PARTS) heights[part] = emptyNodes[part].offsetHeight;
+    const gap = parseFloat(getComputedStyle(empty).rowGap) || 0;
+    const shown = emptyParts(emptyRoom(placed), heights, gap);
+    if (shown.length === 0) {
+      empty.hidden = true;
+      return;
+    }
+    for (const part of EMPTY_PARTS) emptyNodes[part].hidden = !shown.includes(part);
   }
 
   function draw() {
