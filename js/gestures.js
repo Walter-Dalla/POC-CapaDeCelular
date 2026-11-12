@@ -201,13 +201,33 @@ function cropDelta(layer, dxMm, dyMm) {
   return { x: local.x / frame.width, y: local.y / frame.height };
 }
 
-// Wires the pointer on the stage canvas. Does nothing without the state or the stage.
-export function mountGestures(ctx) {
-  if (!ctx.state || !ctx.stage) return;
-  const canvas = document.getElementById('stage-canvas');
-  const stage = document.getElementById('stage');
+// The `ui` patch that keeps crop mode in step with a state change, or null:
+// entering it selects the layer and starts the draft from its crop; a draft
+// dropped by undo starts again from the crop; leaving the Imagens tab,
+// removing the layer or selecting another one cancels it.
+export function cropFollow(next, prev) {
+  const id = next.ui.cropLayerId;
+  if (!id) return null;
+  const layer = getLayer(next.project, id);
+  const leftTab = prev.ui.tab === 'images' && next.ui.tab !== 'images';
+  if (!layer || leftTab) return { cropLayerId: null, cropDraft: null };
+  if (id !== prev.ui.cropLayerId) {
+    return { selectedLayerId: id, cropDraft: next.ui.cropDraft ?? layer.crop ?? { ...FULL_CROP } };
+  }
+  if (next.ui.selectedLayerId !== prev.ui.selectedLayerId && next.ui.selectedLayerId !== id) {
+    return { cropLayerId: null, cropDraft: null };
+  }
+  if (next.ui.cropDraft === null) return { cropDraft: layer.crop ?? { ...FULL_CROP } };
+  return null;
+}
+
+// The gesture state machine, without the DOM: it takes pointers in mm, wheel
+// steps and key actions, and changes the state of ctx.state; ctx.stage gives
+// the screen scale (pxPerMm). setCursor receives one of the CURSORS values
+// (or 'grabbing'), or null for the default cursor.
+export function createGestures(ctx, { setCursor = () => {} } = {}) {
   const { state } = ctx;
-  // Active pointers on the canvas, by pointer id, in mm.
+  // Active pointers, by pointer id, in mm.
   const pointers = new Map();
   let gesture = null;
 
@@ -215,13 +235,6 @@ export function mountGestures(ctx) {
     const model = ctx.model();
     return layerBounds(model, model.bleed);
   };
-
-  // Cursor of the canvas: one of the CURSORS values, or null for the default.
-  function setCursor(name) {
-    for (const className of CURSOR_CLASSES) {
-      canvas.classList.toggle(className, className === `stage-canvas--${name}`);
-    }
-  }
 
   // The layer in crop mode, or null.
   function cropLayer() {
@@ -308,7 +321,7 @@ export function mountGestures(ctx) {
     setCursor(kind === 'scale' ? CURSORS[hit.part] : 'grabbing');
   }
 
-  function moveGesture(event, point) {
+  function moveGesture(point, shiftKey) {
     const { kind, layerId, start } = gesture;
     if (kind === 'drag') {
       const next = dragMove(start, point);
@@ -317,7 +330,7 @@ export function mountGestures(ctx) {
     } else if (kind === 'scale') {
       change((project) => setLayerWidth(project, layerId, scaleFromHandle(start, point)));
     } else if (kind === 'rotate') {
-      change((project) => setRotation(project, layerId, rotateFromHandle(start, point, event.shiftKey)));
+      change((project) => setRotation(project, layerId, rotateFromHandle(start, point, shiftKey)));
     } else if (kind === 'crop') {
       const layer = cropLayer();
       if (!layer || layer.id !== layerId) return;
@@ -380,52 +393,47 @@ export function mountGestures(ctx) {
     if (ended.moved) state.commit();
   }
 
-  canvas.addEventListener('pointerdown', (event) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
-    if (stageView(state.getState()) !== 'edit') return;
-    const point = ctx.stage.toMm(event.clientX, event.clientY);
-    canvas.setPointerCapture(event.pointerId);
-    pointers.set(event.pointerId, point);
+  // A pointer pressed on the stage; returns whether the stage took it.
+  function pointerDown(pointerId, point) {
+    if (stageView(state.getState()) !== 'edit') return false;
+    pointers.set(pointerId, point);
     const cropping = cropLayer();
     if (cropping) {
-      if (pointers.size === 1 && !gesture) startCropGesture(cropping, point, event.pointerId);
-    } else if (pointers.size === 1 && !gesture) startLayerGesture(point, event.pointerId);
+      if (pointers.size === 1 && !gesture) startCropGesture(cropping, point, pointerId);
+    } else if (pointers.size === 1 && !gesture) startLayerGesture(point, pointerId);
     else if (pointers.size === 2) startPinch();
-  });
+    return true;
+  }
 
-  canvas.addEventListener('pointermove', (event) => {
-    const point = ctx.stage.toMm(event.clientX, event.clientY);
-    if (!pointers.has(event.pointerId)) {
-      if (event.pointerType === 'mouse') hover(point);
+  // A pointer moved; a mouse with no button pressed only updates the cursor.
+  function pointerMove(pointerId, point, { mouse = false, shiftKey = false } = {}) {
+    if (!pointers.has(pointerId)) {
+      if (mouse) hover(point);
       return;
     }
-    pointers.set(event.pointerId, point);
-    if (drives(event.pointerId)) moveGesture(event, point);
-  });
+    pointers.set(pointerId, point);
+    if (drives(pointerId)) moveGesture(point, shiftKey);
+  }
 
-  function release(event) {
-    if (!pointers.delete(event.pointerId)) return;
-    if (drives(event.pointerId)) endGesture();
-    if (event.pointerType === 'mouse') hover(ctx.stage.toMm(event.clientX, event.clientY));
+  // A pointer released or cancelled; the gesture it drives ends there.
+  function pointerUp(pointerId, point, { mouse = false } = {}) {
+    if (!pointers.delete(pointerId)) return;
+    if (drives(pointerId)) endGesture();
+    if (mouse) hover(point);
     else setCursor(null);
   }
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
 
-  // The wheel scales the selected layer; a burst of wheel events is one undo step.
-  canvas.addEventListener(
-    'wheel',
-    (event) => {
-      const current = state.getState();
-      if (stageView(current) !== 'edit' || current.ui.cropLayerId) return;
-      const layer = selectedLayer();
-      if (!layer) return;
-      event.preventDefault();
-      state.updateProject((project) => scaleLayer(project, layer.id, wheelFactor(event.deltaY)));
-      state.commit('wheel');
-    },
-    { passive: false },
-  );
+  // One wheel step scales the selected layer; a burst of wheel steps is one
+  // undo step. Returns whether the wheel was used.
+  function wheel(deltaY) {
+    const current = state.getState();
+    if (stageView(current) !== 'edit' || current.ui.cropLayerId) return false;
+    const layer = selectedLayer();
+    if (!layer) return false;
+    state.updateProject((project) => scaleLayer(project, layer.id, wheelFactor(deltaY)));
+    state.commit('wheel');
+    return true;
+  }
 
   // Applies a key action to the selected layer, or in crop mode to the crop;
   // returns whether it was used.
@@ -466,6 +474,58 @@ export function mountGestures(ctx) {
     }
   }
 
+  // "Imagem inteira": the draft becomes the whole image, still to be applied.
+  function resetCrop() {
+    if (cropLayer()) state.setUi({ cropDraft: { ...FULL_CROP } });
+  }
+
+  // Keeps crop mode in step with every state change (see cropFollow).
+  function follow(next, prev) {
+    const patch = cropFollow(next, prev);
+    if (patch) state.setUi(patch);
+  }
+
+  return { pointerDown, pointerMove, pointerUp, wheel, key: applyKey, applyCrop, cancelCrop, resetCrop, follow };
+}
+
+// Wires the stage canvas, the stage keys and the crop bar to the gesture
+// state machine. Does nothing without the state or the stage.
+export function mountGestures(ctx) {
+  if (!ctx.state || !ctx.stage) return;
+  const canvas = document.getElementById('stage-canvas');
+  const stage = document.getElementById('stage');
+  const gestures = createGestures(ctx, {
+    setCursor(name) {
+      for (const className of CURSOR_CLASSES) {
+        canvas.classList.toggle(className, className === `stage-canvas--${name}`);
+      }
+    },
+  });
+  const pointOf = (event) => ctx.stage.toMm(event.clientX, event.clientY);
+
+  canvas.addEventListener('pointerdown', (event) => {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if (gestures.pointerDown(event.pointerId, pointOf(event))) canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener('pointermove', (event) => {
+    gestures.pointerMove(event.pointerId, pointOf(event), {
+      mouse: event.pointerType === 'mouse',
+      shiftKey: event.shiftKey,
+    });
+  });
+  const release = (event) => {
+    gestures.pointerUp(event.pointerId, pointOf(event), { mouse: event.pointerType === 'mouse' });
+  };
+  canvas.addEventListener('pointerup', release);
+  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener(
+    'wheel',
+    (event) => {
+      if (gestures.wheel(event.deltaY)) event.preventDefault();
+    },
+    { passive: false },
+  );
+
   stage.addEventListener('keydown', (event) => {
     // Enter on a button inside the stage presses that button.
     if (event.key === 'Enter' && event.target.closest?.('button, a')) return;
@@ -476,36 +536,11 @@ export function mountGestures(ctx) {
       metaKey: event.metaKey,
       targetIsText: isTextTarget(event.target),
     });
-    if (action && applyKey(action)) event.preventDefault();
+    if (action && gestures.key(action)) event.preventDefault();
   });
 
-  document.getElementById('btn-crop-apply').addEventListener('click', applyCrop);
-  document.getElementById('btn-crop-cancel').addEventListener('click', cancelCrop);
-  document.getElementById('btn-crop-reset').addEventListener('click', () => {
-    if (cropLayer()) state.setUi({ cropDraft: { ...FULL_CROP } });
-  });
-
-  // Crop mode follows the state: entering it selects the layer and starts the
-  // draft from its crop; a draft dropped by undo starts again from the crop;
-  // leaving the Imagens tab, removing the layer or selecting another one
-  // cancels it.
-  state.subscribe((next, prev) => {
-    const id = next.ui.cropLayerId;
-    if (!id) return;
-    const layer = getLayer(next.project, id);
-    const leftTab = prev.ui.tab === 'images' && next.ui.tab !== 'images';
-    if (!layer || leftTab) {
-      cancelCrop();
-      return;
-    }
-    if (id !== prev.ui.cropLayerId) {
-      state.setUi({ selectedLayerId: id, cropDraft: next.ui.cropDraft ?? layer.crop ?? { ...FULL_CROP } });
-      return;
-    }
-    if (next.ui.selectedLayerId !== prev.ui.selectedLayerId && next.ui.selectedLayerId !== id) {
-      cancelCrop();
-      return;
-    }
-    if (next.ui.cropDraft === null) state.setUi({ cropDraft: layer.crop ?? { ...FULL_CROP } });
-  });
+  document.getElementById('btn-crop-apply').addEventListener('click', gestures.applyCrop);
+  document.getElementById('btn-crop-cancel').addEventListener('click', gestures.cancelCrop);
+  document.getElementById('btn-crop-reset').addEventListener('click', gestures.resetCrop);
+  ctx.state.subscribe(gestures.follow);
 }

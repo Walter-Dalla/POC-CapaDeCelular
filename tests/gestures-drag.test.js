@@ -1,6 +1,23 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dragMove, hitTest } from '../js/gestures.js';
+import { createGestures, dragMove, hitTest } from '../js/gestures.js';
+import { createStore } from '../js/state.js';
+
+const MODEL = { id: 'custom', case: { width: 71.6, height: 147.6, cornerRadius: 12 }, cutouts: [], bleed: 2 };
+
+// A store with the layers on the Imagens tab and the gestures wired to it, at 4 px per mm.
+function setup(layers, ui = {}) {
+  const store = createStore();
+  store.loadProject({ project: { layers } });
+  store.setUi({ tab: 'images', ...ui });
+  const gestures = createGestures({ state: store, stage: { pxPerMm: () => 4 }, model: () => MODEL });
+  store.subscribe(gestures.follow);
+  return { store, gestures };
+}
+
+function only(store) {
+  return store.getState().project.layers[0];
+}
 
 // Square image, so a layer's height equals its width unless the crop says otherwise.
 function layer(id, cx, cy, width, extra = {}) {
@@ -66,4 +83,57 @@ test('hitTest: the rotate handle sits 50 px above the top edge', () => {
   assert.deepEqual(hitTest(layers, { x: -10, y: -10 }, 4, 'a'), { layerId: 'a', part: 'nw' });
   assert.deepEqual(hitTest(layers, { x: 10, y: -10 }, 4, 'a'), { layerId: 'a', part: 'ne' });
   assert.deepEqual(hitTest(layers, { x: -10, y: 10 }, 4, 'a'), { layerId: 'a', part: 'sw' });
+});
+
+test('drag: selects the layer, moves it with the guides and makes one undo step on release', () => {
+  const { store, gestures } = setup([layer('a', 10, 10, 20)]);
+  assert.equal(gestures.pointerDown(1, { x: 12, y: 14 }), true);
+  assert.equal(store.getState().ui.selectedLayerId, 'a');
+  gestures.pointerMove(1, { x: 15, y: 14 });
+  gestures.pointerMove(1, { x: 3, y: 4.5 });
+  assert.deepEqual([only(store).cx, only(store).cy], [0, 0]);
+  assert.deepEqual(store.getState().ui.guides, { v: true, h: true });
+  gestures.pointerMove(1, { x: 22, y: 34 });
+  gestures.pointerUp(1, { x: 22, y: 34 });
+  assert.deepEqual([only(store).cx, only(store).cy], [20, 30]);
+  assert.deepEqual(store.getState().ui.guides, { v: false, h: false });
+  assert.equal(store.undo(), true);
+  assert.deepEqual([only(store).cx, only(store).cy], [10, 10]);
+  assert.equal(store.canUndo(), false);
+});
+
+test('drag: a click without movement makes no undo step', () => {
+  const { store, gestures } = setup([layer('a', 0, 0, 20)]);
+  gestures.pointerDown(1, { x: 1, y: 1 });
+  gestures.pointerUp(1, { x: 1, y: 1 });
+  assert.equal(store.getState().ui.selectedLayerId, 'a');
+  assert.equal(store.canUndo(), false);
+});
+
+test('drag: a press on an empty spot clears the selection', () => {
+  const { store, gestures } = setup([layer('a', 0, 0, 20)], { selectedLayerId: 'a' });
+  gestures.pointerDown(1, { x: 30, y: 30 });
+  gestures.pointerMove(1, { x: 0, y: 0 });
+  gestures.pointerUp(1, { x: 0, y: 0 });
+  assert.equal(store.getState().ui.selectedLayerId, null);
+  assert.deepEqual([only(store).cx, only(store).cy], [0, 0]);
+  assert.equal(store.canUndo(), false);
+});
+
+test('drag: the centre stays within the case plus bleed', () => {
+  const { store, gestures } = setup([layer('a', 0, 0, 20)]);
+  gestures.pointerDown(1, { x: 0, y: 0 });
+  gestures.pointerMove(1, { x: 500, y: -500 });
+  gestures.pointerUp(1, { x: 500, y: -500 });
+  // Half of 71.6 plus 2 mm of bleed; half of 147.6 plus 2.
+  assert.deepEqual([only(store).cx, only(store).cy], [37.8, -75.8]);
+});
+
+test('drag: the pointer is ignored on the Exportar tab', () => {
+  const { store, gestures } = setup([layer('a', 0, 0, 20)], { tab: 'export' });
+  assert.equal(gestures.pointerDown(1, { x: 0, y: 0 }), false);
+  gestures.pointerMove(1, { x: 10, y: 10 });
+  gestures.pointerUp(1, { x: 10, y: 10 });
+  assert.equal(store.getState().ui.selectedLayerId, null);
+  assert.deepEqual([only(store).cx, only(store).cy], [0, 0]);
 });
