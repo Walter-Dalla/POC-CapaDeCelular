@@ -106,6 +106,26 @@ test('wheel: scales the selected layer, a burst is one undo step', () => {
   assert.equal(store.canUndo(), false);
 });
 
+test('wheel: ignored during a drag, which stays one undo step', () => {
+  const { store, gestures, layer } = setup();
+  gestures.pointerDown(1, { x: 0, y: 0 });
+  gestures.pointerMove(1, { x: 5, y: 0 });
+  assert.equal(gestures.wheel(-10000), false);
+  gestures.pointerUp(1, { x: 5, y: 0 });
+  assert.deepEqual([layer().cx, layer().width], [5, 20]);
+  assert.equal(store.undo(), true);
+  assert.equal(layer().cx, 0);
+  assert.equal(store.canUndo(), false);
+});
+
+test('wheel: ignored during a pinch', () => {
+  const { gestures, layer } = setup();
+  gestures.pointerDown(1, { x: -5, y: 0 });
+  gestures.pointerDown(2, { x: 5, y: 0 });
+  assert.equal(gestures.wheel(-10000), false);
+  assert.equal(layer().width, 20);
+});
+
 test('wheel: unused without a selected layer or in crop mode', () => {
   assert.equal(setup({ selectedLayerId: null }).gestures.wheel(-100), false);
   const cropping = setup({ selectedLayerId: 'a', cropLayerId: 'a' });

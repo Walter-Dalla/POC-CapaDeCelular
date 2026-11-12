@@ -424,8 +424,10 @@ export function createGestures(ctx, { setCursor = () => {} } = {}) {
   }
 
   // One wheel step scales the selected layer; a burst of wheel steps is one
-  // undo step. Returns whether the wheel was used.
+  // undo step. Ignored while a pointer gesture is under way, which closes its
+  // own undo step on release. Returns whether the wheel was used.
   function wheel(deltaY) {
+    if (gesture) return false;
     const current = state.getState();
     if (stageView(current) !== 'edit' || current.ui.cropLayerId) return false;
     const layer = selectedLayer();
