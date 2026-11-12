@@ -1,0 +1,112 @@
+/* Modelo panel. Every colour, radius and spacing comes from css/tokens.css. */
+
+/* The tab panel scrolls; the footer with the next-step button stays at its bottom edge */
+#panel-model {
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-model {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-20);
+}
+
+.panel__next {
+  width: 100%;
+}
+
+.panel-model__failure {
+  margin: 0;
+}
+
+.panel-model__search {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.panel-model__label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.panel-model__brands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.panel-model__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.panel-model__empty {
+  margin: 0;
+}
+
+/* Model card: thumbnail, name and size, badge and check */
+.model-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 68px;
+  padding: var(--space-8) var(--space-12);
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.model-card__thumb {
+  flex-shrink: 0;
+  color: var(--color-text);
+}
+
+.model-card__text {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  min-width: 0;
+}
+
+.model-card__name {
+  font-weight: 700;
+}
+
+.model-card__detail {
+  font-size: 13px;
+  color: var(--color-text-2);
+}
+
+.model-card__check {
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+/* Custom model form */
+.panel-model__custom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin: 0;
+}
+
+.panel-model__custom-text {
+  margin: var(--space-4) 0 0;
+}
+
+.panel-model__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.panel-model__error {
+  margin: 0;
+}
