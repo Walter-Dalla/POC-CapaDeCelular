@@ -8,6 +8,7 @@ const DUPLICATE_OFFSET_MM = 5;
 const MIN_WIDTH_MM = 5;
 const MAX_WIDTH_MM = 2000;
 const MIN_CROP_SIDE = 0.05;
+const MM_PER_INCH = 25.4;
 const COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
 // A new unique id. crypto.randomUUID is missing on plain-http addresses, so
@@ -270,4 +271,22 @@ export function setCrop(project, id, crop) {
 // Back to the whole image, keeping the image where it was.
 export function resetCrop(project, id) {
   return setCrop(project, id, FULL_CROP);
+}
+
+// Print resolution below which a layer is reported as low.
+export const LOW_DPI = 150;
+
+// Image pixels per inch of the layer once printed: the visible pixels across
+// divided by the printed width in inches. Not rounded.
+export function effectiveDpi(layer) {
+  return (cropOf(layer).width * layer.naturalWidth) / (layer.width / MM_PER_INCH);
+}
+
+export function isLowRes(layer) {
+  return effectiveDpi(layer) < LOW_DPI;
+}
+
+// Layers printed below LOW_DPI, the top layer first.
+export function lowResLayers(project) {
+  return project.layers.filter(isLowRes).reverse();
 }
